@@ -1,0 +1,285 @@
+package com.example.schday.scheduler
+
+import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.media.AudioManager
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import com.example.schday.MainActivity
+import com.example.schday.data.AppDatabase
+import com.example.schday.data.DataRepository
+import com.example.schday.data.DefaultDataRepository
+import com.example.schday.data.entity.*
+import com.example.schday.utils.DateUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import java.util.*
+
+class ClassAlarmReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        val action = intent.action ?: return
+        val courseName = intent.getStringExtra("course_name") ?: "课程"
+        val classroom = intent.getStringExtra("classroom") ?: ""
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val sharedPrefs = context.getSharedPreferences("schday_settings", Context.MODE_PRIVATE)
+
+        val channelId = "class_reminders"
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // Create Notification Channel on Oreo+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, "课程提醒", NotificationManager.IMPORTANCE_HIGH)
+            notificationManager.createNotificationChannel(channel)
+            val homeworkChannel = NotificationChannel("homework_reminders", "作业提醒", NotificationManager.IMPORTANCE_HIGH)
+            notificationManager.createNotificationChannel(homeworkChannel)
+        }
+
+        when (action) {
+            ACTION_CLASS_REMINDER -> {
+                // 1. Send pre-class warning notification
+                val notificationIntent = Intent(context, MainActivity::class.java)
+                val pendingIntent = PendingIntent.getActivity(
+                    context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                
+                val contentText = if (classroom.isNotEmpty()) "即将上课，教室: $classroom" else "课程即将开始，做好准备哦！"
+                val notification = NotificationCompat.Builder(context, channelId)
+                    .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                    .setContentTitle("上课提醒: $courseName")
+                    .setContentText(contentText)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setContentIntent(pendingIntent)
+                    .setAutoCancel(true)
+                    .build()
+
+                notificationManager.notify(1001, notification)
+            }
+            ACTION_CLASS_START -> {
+                // 2. Automate Silent Profile at exact start time
+                val autoMute = sharedPrefs.getBoolean("auto_mute_enabled", false)
+                if (autoMute) {
+                    // Save previous ringer mode state
+                    val prevRinger = audioManager.ringerMode
+                    sharedPrefs.edit().putInt("previous_ringer_mode", prevRinger).apply()
+
+                    val muteType = sharedPrefs.getInt("auto_mute_type", 0) // 0 = DND, 1 = Vibrate, 2 = Silent
+                    when (muteType) {
+                        0 -> {
+                            // Do Not Disturb (DND)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager.isNotificationPolicyAccessGranted) {
+                                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
+                            } else {
+                                // Fallback to silent if DND not allowed
+                                audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+                            }
+                        }
+                        1 -> audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE
+                        2 -> audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+                    }
+                }
+            }
+            ACTION_CLASS_END -> {
+                // Restore previous audio profile
+                val autoMute = sharedPrefs.getBoolean("auto_mute_enabled", false)
+                if (autoMute) {
+                    val prevRinger = sharedPrefs.getInt("previous_ringer_mode", AudioManager.RINGER_MODE_NORMAL)
+                    audioManager.ringerMode = prevRinger
+
+                    // Restore DND interruption filter
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager.isNotificationPolicyAccessGranted) {
+                        notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+                    }
+                }
+            }
+            ACTION_HOMEWORK_REMINDER -> {
+                // Reschedule next day's alarm
+                AlarmScheduler.scheduleHomeworkReminderAlarm(context)
+
+                val db = AppDatabase.getDatabase(context)
+                CoroutineScope(Dispatchers.IO).launch {
+                    val homeworkList = db.homeworkDao().getUncompletedHomework().first()
+                    val now = System.currentTimeMillis()
+                    val limit = now + 48 * 60 * 60 * 1000 // 48 hours
+                    val urgentHomework = homeworkList.filter { it.deadline in now..limit }
+
+                    if (urgentHomework.isNotEmpty()) {
+                        val coursesList = db.courseDao().getAllCoursesDirect()
+                        val courseMap = coursesList.associateBy { it.id }
+
+                        val notificationIntent = Intent(context, MainActivity::class.java)
+                        val pendingIntent = PendingIntent.getActivity(
+                            context, 1002, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+
+                        val summaryText = if (urgentHomework.size == 1) {
+                            val hw = urgentHomework[0]
+                            val courseNameStr = courseMap[hw.courseId]?.name ?: "课程"
+                            "您有1项待办作业: [${courseNameStr}] ${hw.title}"
+                        } else {
+                            "您有 ${urgentHomework.size} 项作业即将在48小时内截止，请及时完成！"
+                        }
+
+                        val detailText = "以下作业即将在48小时内截止：\n" + urgentHomework.joinToString("\n") { hw ->
+                            val courseNameStr = courseMap[hw.courseId]?.name ?: "课程"
+                            "- [${courseNameStr}] ${hw.title}"
+                        }
+
+                        val notification = NotificationCompat.Builder(context, "homework_reminders")
+                            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                            .setContentTitle("作业截止提醒")
+                            .setContentText(summaryText)
+                            .setStyle(NotificationCompat.BigTextStyle().bigText(detailText))
+                            .setPriority(NotificationCompat.PRIORITY_HIGH)
+                            .setContentIntent(pendingIntent)
+                            .setAutoCancel(true)
+                            .build()
+
+                        notificationManager.notify(1002, notification)
+                    }
+                }
+            }
+        }
+    }
+
+    companion object {
+        const val ACTION_CLASS_REMINDER = "com.example.schday.ACTION_CLASS_REMINDER"
+        const val ACTION_CLASS_START = "com.example.schday.ACTION_CLASS_START"
+        const val ACTION_CLASS_END = "com.example.schday.ACTION_CLASS_END"
+        const val ACTION_HOMEWORK_REMINDER = "com.example.schday.ACTION_HOMEWORK_REMINDER"
+    }
+}
+
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+            val db = AppDatabase.getDatabase(context)
+            val repository = DefaultDataRepository(db)
+            CoroutineScope(Dispatchers.IO).launch {
+                AlarmScheduler.scheduleTodayAlarms(context, repository)
+                AlarmScheduler.scheduleHomeworkReminderAlarm(context)
+            }
+        }
+    }
+}
+
+object AlarmScheduler {
+
+    fun scheduleHomeworkReminderAlarm(context: Context) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, ClassAlarmReceiver::class.java).apply {
+            action = ClassAlarmReceiver.ACTION_HOMEWORK_REMINDER
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context, 9999, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = System.currentTimeMillis()
+            set(Calendar.HOUR_OF_DAY, 20)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        if (calendar.timeInMillis <= System.currentTimeMillis()) {
+            calendar.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        val triggerTime = calendar.timeInMillis
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+        } else {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+        }
+    }
+
+    suspend fun scheduleTodayAlarms(context: Context, repository: DataRepository) {
+        val semester = repository.getCurrentSemester().first() ?: return
+        val currentWeek = DateUtils.getCurrentWeek(semester.startDate, semester.totalWeeks)
+        val dayOfWeek = DateUtils.getDayOfWeek()
+
+        val courses = repository.getCoursesBySemester(semester.id).first()
+        val periods = repository.getAllPeriodTimes().first()
+
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val sharedPrefs = context.getSharedPreferences("schday_settings", Context.MODE_PRIVATE)
+        val offsetMinutes = sharedPrefs.getInt("pre_class_reminder_offset", 10)
+
+        var requestCode = 0
+
+        for (c in courses) {
+            for (slot in c.slots) {
+                // If it is active today
+                if (slot.dayOfWeek == dayOfWeek && DateUtils.isWeekActive(slot.activeWeeks, currentWeek)) {
+                    val startPeriodTime = periods.find { it.periodNumber == slot.startPeriod } ?: continue
+                    val endPeriodTime = periods.find { it.periodNumber == slot.endPeriod } ?: continue
+
+                    // 1. Reminder alarm (fires offsetMinutes before class start)
+                    val startTrigger = getTriggerTime(startPeriodTime.startTime)
+                    val reminderTrigger = startTrigger - offsetMinutes * 60 * 1000
+                    val reminderIntent = Intent(context, ClassAlarmReceiver::class.java).apply {
+                        action = ClassAlarmReceiver.ACTION_CLASS_REMINDER
+                        putExtra("course_name", c.course.name)
+                        putExtra("classroom", slot.classroom)
+                    }
+                    val reminderPI = PendingIntent.getBroadcast(
+                        context, requestCode++, reminderIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    scheduleAlarm(alarmManager, reminderTrigger, reminderPI)
+
+                    // 2. Start silent mode alarm (fires exactly at class start)
+                    val startIntent = Intent(context, ClassAlarmReceiver::class.java).apply {
+                        action = ClassAlarmReceiver.ACTION_CLASS_START
+                        putExtra("course_name", c.course.name)
+                        putExtra("classroom", slot.classroom)
+                    }
+                    val startPI = PendingIntent.getBroadcast(
+                        context, requestCode++, startIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    scheduleAlarm(alarmManager, startTrigger, startPI)
+
+                    // 3. End silent mode alarm (fires exactly at class end)
+                    val endTrigger = getTriggerTime(endPeriodTime.endTime)
+                    val endIntent = Intent(context, ClassAlarmReceiver::class.java).apply {
+                        action = ClassAlarmReceiver.ACTION_CLASS_END
+                        putExtra("course_name", c.course.name)
+                    }
+                    val endPI = PendingIntent.getBroadcast(
+                        context, requestCode++, endIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    scheduleAlarm(alarmManager, endTrigger, endPI)
+                }
+            }
+        }
+    }
+
+    private fun scheduleAlarm(alarmManager: AlarmManager, triggerTime: Long, pendingIntent: PendingIntent) {
+        if (triggerTime < System.currentTimeMillis()) return // Do not schedule alarms in the past
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+        } else {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+        }
+    }
+
+    private fun getTriggerTime(timeStr: String): Long {
+        val parts = timeStr.split(":")
+        val hour = parts[0].toInt()
+        val minute = parts[1].toInt()
+
+        return Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+}

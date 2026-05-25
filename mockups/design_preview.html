@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拾光课表 / GlowSchedule - 设计预览</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <style>
+        body {
+            font-family: 'Outfit', 'Noto Sans SC', sans-serif;
+            transition: background-color 0.5s ease, color 0.3s ease;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dark .glass-card {
+            background: rgba(22, 31, 50, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .monochrome .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            border: 1px solid #E0E0E0;
+            box-shadow: none;
+        }
+        .dark.monochrome .glass-card {
+            background: rgba(18, 18, 18, 0.9);
+            border: 1px solid #2A2A2A;
+        }
+        .anim-pulse-ring {
+            box-shadow: 0 0 0 0 rgba(84, 98, 78, 0.4);
+            animation: pulse-ring 2s infinite;
+        }
+        @keyframes pulse-ring {
+            0% {
+                box-shadow: 0 0 0 0 rgba(84, 98, 78, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(84, 98, 78, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(84, 98, 78, 0);
+            }
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 99px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        morandi: {
+                            bg: '#F6F8FC',
+                            bgDark: '#0B0F19',
+                            primary: '#54624E',
+                            primaryContainer: '#98A78F',
+                            secondary: '#7B5455',
+                            tertiary: '#4F6071',
+                            cardA: '#FFD3D3',
+                            cardB: '#D6E4FF',
+                            cardC: '#D2F4EA',
+                            cardD: '#F3E0EC',
+                            cardE: '#FFE8D6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-morandi-bg text-slate-800 dark:bg-morandi-bgDark dark:text-slate-200 min-h-screen relative overflow-x-hidden antialiased pb-24">
+
+    <!-- Background Blobs (Morandi theme only) -->
+    <div id="blob1" class="fixed -top-40 -left-40 w-[600px] h-[600px] bg-emerald-100/40 dark:bg-emerald-950/10 rounded-full blur-[120px] pointer-events-none transition-opacity duration-500"></div>
+    <div id="blob2" class="fixed -bottom-20 -right-20 w-[500px] h-[500px] bg-rose-100/40 dark:bg-rose-950/10 rounded-full blur-[100px] pointer-events-none transition-opacity duration-500"></div>
+
+    <!-- Header / Top Bar -->
+    <header class="sticky top-0 z-40 w-full bg-white/30 dark:bg-slate-900/30 backdrop-blur-md border-b border-white/20 dark:border-slate-800/20">
+        <div class="max-w-md mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <span class="material-symbols-outlined text-morandi-primary dark:text-emerald-400 font-bold">grain</span>
+                <span class="font-bold text-lg tracking-tight text-morandi-primary dark:text-slate-100">拾光课表</span>
+            </div>
+            
+            <!-- Quick Design Config Panel in Mockup -->
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center justify-center" title="切换深浅模式">
+                    <span id="theme-icon" class="material-symbols-outlined text-xl">dark_mode</span>
+                </button>
+                <button onclick="toggleStyle()" class="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center justify-center" title="切换莫兰迪/极简风格">
+                    <span id="style-icon" class="material-symbols-outlined text-xl text-morandi-primary dark:text-emerald-400">palette</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Panel -->
+    <main class="max-w-md mx-auto px-6 pt-6">
+
+        <!-- TAB 1: TODAY AGENDA -->
+        <div id="tab-today" class="space-y-6">
+            <!-- Greeting & Mascot Widget -->
+            <div class="flex justify-between items-start">
+                <div class="space-y-1">
+                    <h2 class="text-2xl font-black tracking-tight" id="greeting-title">早上好，Jane</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">今天有 3 节课，第一节即将开始 ☕</p>
+                </div>
+                <!-- Mini Pixel Cat Widget -->
+                <div class="flex flex-col items-center bg-white/40 dark:bg-slate-800/40 p-2 rounded-2xl border border-white/50 dark:border-slate-700/50">
+                    <pre class="text-[6px] font-mono leading-[5px] text-morandi-primary dark:text-emerald-400 select-none">
+  /\_/\\
+ ( o.o )
+  > ^ <
+                    </pre>
+                    <span class="text-[9px] font-bold text-slate-400 mt-1">拾光猫 · 读书中</span>
+                </div>
+            </div>
+
+            <!-- Next Class Card (Featured Glass Card) -->
+            <section class="glass-card rounded-3xl p-6 shadow-sm border relative overflow-hidden group">
+                <!-- Glowing Ring -->
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-emerald-400/10 dark:bg-emerald-500/5 rounded-full blur-2xl"></div>
+                
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span class="text-xs font-bold tracking-wider text-emerald-600 dark:text-emerald-400 uppercase">下节课 · 15分钟后开始</span>
+                </div>
+                
+                <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-4">高级数学</h3>
+                
+                <div class="grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+                    <div class="flex items-center space-x-2">
+                        <span class="material-symbols-outlined text-lg text-morandi-primary dark:text-emerald-400">schedule</span>
+                        <span class="font-medium">09:50 - 11:25</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="material-symbols-outlined text-lg text-morandi-primary dark:text-emerald-400">location_on</span>
+                        <span>3号楼 Rm 302</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quiet Mode status widget -->
+            <div class="glass-card rounded-2xl p-4 flex items-center justify-between border">
+                <div class="flex items-center space-x-3">
+                    <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/50 p-2 rounded-xl">notifications_paused</span>
+                    <div>
+                        <h4 class="text-sm font-bold">静音自动防护</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">上课期间将自动开启“勿扰”</p>
+                    </div>
+                </div>
+                <button class="text-xs font-bold text-morandi-primary dark:text-emerald-400 border border-morandi-primary/30 dark:border-emerald-400/30 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">
+                    延长1小时
+                </button>
+            </div>
+
+            <!-- Today's Course Timeline -->
+            <section class="space-y-4">
+                <h3 class="text-sm font-bold text-slate-400 tracking-wider uppercase pl-1">今日日程线</h3>
+                
+                <div class="relative pl-6 border-l-2 border-slate-200 dark:border-slate-800 space-y-6">
+                    <!-- Course 1 (Completed) -->
+                    <div class="relative">
+                        <!-- Dot -->
+                        <div class="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full border-2 border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-900"></div>
+                        <div class="opacity-40 line-through">
+                            <span class="text-xs text-slate-500">08:00 - 09:35 (第 1-2 节)</span>
+                            <h4 class="font-bold text-base text-slate-700 dark:text-slate-300">大学英语</h4>
+                            <p class="text-xs text-slate-400">@1号楼 Rm 101 · 王老师</p>
+                        </div>
+                    </div>
+
+                    <!-- Course 2 (Active/Next) -->
+                    <div class="relative">
+                        <!-- Dot -->
+                        <div class="absolute -left-[33px] top-1 w-5 h-5 rounded-full bg-emerald-500 border-4 border-white dark:border-slate-900 shadow-sm anim-pulse-ring"></div>
+                        <div class="space-y-1">
+                            <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">09:50 - 11:25 (第 3-4 节)</span>
+                            <h4 class="font-bold text-base">高级数学</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">@3号楼 Rm 302 · 李教授</p>
+                        </div>
+                    </div>
+
+                    <!-- Course 3 (Upcoming) -->
+                    <div class="relative">
+                        <!-- Dot -->
+                        <div class="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full border-2 border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900"></div>
+                        <div class="space-y-1">
+                            <span class="text-xs text-slate-500">14:00 - 15:35 (第 5-6 节)</span>
+                            <h4 class="font-bold text-base">计算机网络</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">@实验楼 Rm 504 · 张老师</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- TAB 2: WEEKLY TIMETABLE -->
+        <div id="tab-weekly" class="hidden space-y-4">
+            <!-- Timetable Header Bar -->
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <h3 class="text-lg font-bold">第 1 周</h3>
+                    <span class="text-xs bg-morandi-primary/10 dark:bg-emerald-500/10 text-morandi-primary dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">本周</span>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="toggleWeekend()" class="text-xs font-bold bg-white/40 dark:bg-slate-800/40 border px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                        折叠周末
+                    </button>
+                    <button class="text-xs font-bold bg-white/40 dark:bg-slate-800/40 border px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                        回到本周
+                    </button>
+                </div>
+            </div>
+
+            <!-- Timetable Grid Container -->
+            <div class="overflow-x-auto w-full glass-card rounded-2xl border p-2">
+                <div class="min-w-[440px] grid grid-cols-8 gap-1 text-center">
+                    
+                    <!-- Top header row -->
+                    <div class="text-[10px] font-bold text-slate-400 flex items-center justify-center h-8">节次</div>
+                    <div class="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center justify-center h-8 bg-emerald-500/10 rounded-lg">一<br><span class="text-[8px]">Today</span></div>
+                    <div class="text-[10px] font-bold text-slate-400 flex items-center justify-center h-8">二</div>
+                    <div class="text-[10px] font-bold text-slate-400 flex items-center justify-center h-8">三</div>
+                    <div class="text-[10px] font-bold text-slate-400 flex items-center justify-center h-8">四</div>
+                    <div class="text-[10px] font-bold text-slate-400 flex items-center justify-center h-8">五</div>
+                    <div id="grid-sat" class="text-[10px] font-bold text-slate-400 flex items-center justify-center h-8 transition-all duration-300">六</div>
+                    <div id="grid-sun" class="text-[10px] font-bold text-slate-400 flex items-center justify-center h-8 transition-all duration-300">日</div>
+
+                    <!-- Row 1-2 Period -->
+                    <div class="text-[10px] text-slate-400 flex flex-col justify-center h-16 border-b border-slate-100 dark:border-slate-800">
+                        <span class="font-bold">1-2</span>
+                        <span class="text-[8px] scale-75">08:00</span>
+                    </div>
+                    <!-- Mon -->
+                    <div class="p-1 h-16">
+                        <div class="h-full w-full rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-[9px] p-1 flex flex-col justify-center text-emerald-800 dark:text-emerald-200 font-bold border border-emerald-200/50 dark:border-emerald-800/30">
+                            <span>大学英语</span>
+                            <span class="text-[7px] font-normal opacity-80">@1-101</span>
+                        </div>
+                    </div>
+                    <!-- Tue -->
+                    <div class="p-1 h-16"></div>
+                    <!-- Wed -->
+                    <div class="p-1 h-16">
+                        <div class="h-full w-full rounded-lg bg-rose-100 dark:bg-rose-950/40 text-[9px] p-1 flex flex-col justify-center text-rose-800 dark:text-rose-200 font-bold border border-rose-200/50 dark:border-rose-800/30">
+                            <span>大学物理</span>
+                            <span class="text-[7px] font-normal opacity-80">@理-304</span>
+                        </div>
+                    </div>
+                    <!-- Thu -->
+                    <div class="p-1 h-16"></div>
+                    <!-- Fri -->
+                    <div class="p-1 h-16">
+                        <div class="h-full w-full rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-[9px] p-1 flex flex-col justify-center text-emerald-800 dark:text-emerald-200 font-bold border border-emerald-200/50 dark:border-emerald-800/30">
+                            <span>大学英语</span>
+                            <span class="text-[7px] font-normal opacity-80">@1-101</span>
+                        </div>
+                    </div>
+                    <!-- Sat -->
+                    <div id="cell-sat-1" class="p-1 h-16 transition-all duration-300"></div>
+                    <!-- Sun -->
+                    <div id="cell-sun-1" class="p-1 h-16 transition-all duration-300"></div>
+
+                    <!-- Row 3-4 Period -->
+                    <div class="text-[10px] text-slate-400 flex flex-col justify-center h-16 border-b border-slate-100 dark:border-slate-800">
+                        <span class="font-bold">3-4</span>
+                        <span class="text-[8px] scale-75">09:50</span>
+                    </div>
+                    <!-- Mon (Active Course) -->
+                    <div class="p-1 h-16">
+                        <div class="h-full w-full rounded-lg bg-blue-100 dark:bg-blue-950/40 text-[9px] p-1 flex flex-col justify-center text-blue-800 dark:text-blue-200 font-bold border-2 border-blue-400 dark:border-blue-700 shadow-sm relative">
+                            <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span>
+                            <span>高级数学</span>
+                            <span class="text-[7px] font-normal opacity-80">@3-302</span>
+                        </div>
+                    </div>
+                    <!-- Tue -->
+                    <div class="p-1 h-16">
+                        <div class="h-full w-full rounded-lg bg-purple-100 dark:bg-purple-950/40 text-[9px] p-1 flex flex-col justify-center text-purple-800 dark:text-purple-200 font-bold border border-purple-200/50 dark:border-purple-800/30">
+                            <span>线性代数</span>
+                            <span class="text-[7px] font-normal opacity-80">@3-102</span>
+                        </div>
+                    </div>
+                    <!-- Wed -->
+                    <div class="p-1 h-16"></div>
+                    <!-- Thu -->
+                    <div class="p-1 h-16">
+                        <div class="h-full w-full rounded-lg bg-purple-100 dark:bg-purple-950/40 text-[9px] p-1 flex flex-col justify-center text-purple-800 dark:text-purple-200 font-bold border border-purple-200/50 dark:border-purple-800/30">
+                            <span>线性代数</span>
+                            <span class="text-[7px] font-normal opacity-80">@3-102</span>
+                        </div>
+                    </div>
+                    <!-- Fri -->
+                    <div class="p-1 h-16"></div>
+                    <!-- Sat -->
+                    <div id="cell-sat-2" class="p-1 h-16 transition-all duration-300"></div>
+                    <!-- Sun -->
+                    <div id="cell-sun-2" class="p-1 h-16 transition-all duration-300"></div>
+
+                    <!-- Row 5-6 Period -->
+                    <div class="text-[10px] text-slate-400 flex flex-col justify-center h-16 border-b border-slate-100 dark:border-slate-800">
+                        <span class="font-bold">5-6</span>
+                        <span class="text-[8px] scale-75">14:00</span>
+                    </div>
+                    <!-- Mon -->
+                    <div class="p-1 h-16">
+                        <div class="h-full w-full rounded-lg bg-orange-100 dark:bg-orange-950/40 text-[9px] p-1 flex flex-col justify-center text-orange-800 dark:text-orange-200 font-bold border border-orange-200/50 dark:border-orange-800/30">
+                            <span>计算机网络</span>
+                            <span class="text-[7px] font-normal opacity-80">@实-504</span>
+                        </div>
+                    </div>
+                    <!-- Tue -->
+                    <div class="p-1 h-16"></div>
+                    <!-- Wed -->
+                    <div class="p-1 h-16">
+                        <!-- Conflict Overlay Simulation -->
+                        <div class="h-full w-full relative">
+                            <div class="absolute inset-0 rounded-lg bg-teal-100/50 dark:bg-teal-950/20 text-[7px] border border-dashed border-teal-300 flex items-end p-1 justify-center translate-x-1.5 translate-y-1.5 shadow-sm">
+                                <span>选修课</span>
+                            </div>
+                            <div class="absolute inset-0 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-[9px] p-1 flex flex-col justify-center text-emerald-800 dark:text-emerald-200 font-bold border border-emerald-200/50 dark:border-emerald-800/30 shadow-md">
+                                <span>信息安全</span>
+                                <span class="text-[7px] font-normal opacity-80">@3-401</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Thu -->
+                    <div class="p-1 h-16"></div>
+                    <!-- Fri -->
+                    <div class="p-1 h-16"></div>
+                    <!-- Sat -->
+                    <div id="cell-sat-3" class="p-1 h-16 transition-all duration-300"></div>
+                    <!-- Sun -->
+                    <div id="cell-sun-3" class="p-1 h-16 transition-all duration-300"></div>
+                </div>
+            </div>
+            <p class="text-[11px] text-slate-400 text-center">💡 点击重叠课程可展开解析；在设置中支持上传课表底图。</p>
+        </div>
+
+    </main>
+
+    <!-- Navigation / Bottom Bar -->
+    <nav class="fixed bottom-0 left-0 w-full z-40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-t border-white/20 dark:border-slate-800/20">
+        <div class="max-w-md mx-auto flex justify-around py-3">
+            <button id="nav-btn-today" onclick="switchTab('today')" class="flex flex-col items-center space-y-1 text-morandi-primary dark:text-emerald-400 px-4 py-1">
+                <span class="material-symbols-outlined text-2xl font-bold">today</span>
+                <span class="text-xs font-bold">今日</span>
+            </button>
+            <button id="nav-btn-weekly" onclick="switchTab('weekly')" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-4 py-1">
+                <span class="material-symbols-outlined text-2xl">calendar_view_week</span>
+                <span class="text-xs font-medium">每周课表</span>
+            </button>
+            <button onclick="alert('进入设置')" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-4 py-1">
+                <span class="material-symbols-outlined text-2xl">settings</span>
+                <span class="text-xs font-medium">设置</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- JS Logic for Interactivity in Preview -->
+    <script>
+        let isDark = false;
+        let isMonochrome = false;
+        let isWeekendFolded = false;
+
+        function toggleTheme() {
+            isDark = !isDark;
+            const body = document.body;
+            const icon = document.getElementById('theme-icon');
+            
+            if (isDark) {
+                body.classList.add('dark');
+                icon.innerText = 'light_mode';
+            } else {
+                body.classList.remove('dark');
+                icon.innerText = 'dark_mode';
+            }
+        }
+
+        function toggleStyle() {
+            isMonochrome = !isMonochrome;
+            const body = document.body;
+            const styleIcon = document.getElementById('style-icon');
+            const blob1 = document.getElementById('blob1');
+            const blob2 = document.getElementById('blob2');
+
+            if (isMonochrome) {
+                body.classList.add('monochrome');
+                blob1.style.opacity = '0';
+                blob2.style.opacity = '0';
+                styleIcon.classList.remove('text-morandi-primary');
+                styleIcon.classList.add('text-slate-400');
+            } else {
+                body.classList.remove('monochrome');
+                blob1.style.opacity = '1';
+                blob2.style.opacity = '1';
+                styleIcon.classList.add('text-morandi-primary');
+                styleIcon.classList.remove('text-slate-400');
+            }
+        }
+
+        function switchTab(tab) {
+            const tabToday = document.getElementById('tab-today');
+            const tabWeekly = document.getElementById('tab-weekly');
+            const btnToday = document.getElementById('nav-btn-today');
+            const btnWeekly = document.getElementById('nav-btn-weekly');
+
+            if (tab === 'today') {
+                tabToday.classList.remove('hidden');
+                tabWeekly.classList.add('hidden');
+                
+                btnToday.className = "flex flex-col items-center space-y-1 text-morandi-primary dark:text-emerald-400 px-4 py-1";
+                btnWeekly.className = "flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-4 py-1";
+            } else {
+                tabToday.classList.add('hidden');
+                tabWeekly.classList.remove('hidden');
+
+                btnToday.className = "flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-4 py-1";
+                btnWeekly.className = "flex flex-col items-center space-y-1 text-morandi-primary dark:text-emerald-400 px-4 py-1";
+            }
+        }
+
+        function toggleWeekend() {
+            isWeekendFolded = !isWeekendFolded;
+            const satHeader = document.getElementById('grid-sat');
+            const sunHeader = document.getElementById('grid-sun');
+            
+            const satCells = [
+                document.getElementById('cell-sat-1'),
+                document.getElementById('cell-sat-2'),
+                document.getElementById('cell-sat-3')
+            ];
+            const sunCells = [
+                document.getElementById('cell-sun-1'),
+                document.getElementById('cell-sun-2'),
+                document.getElementById('cell-sun-3')
+            ];
+
+            if (isWeekendFolded) {
+                // Collapse Sat/Sun columns in UI
+                satHeader.style.opacity = '0.25';
+                sunHeader.style.opacity = '0.25';
+                satCells.forEach(c => c.style.opacity = '0.2');
+                sunCells.forEach(c => c.style.opacity = '0.2');
+            } else {
+                // Restore Sat/Sun
+                satHeader.style.opacity = '1';
+                sunHeader.style.opacity = '1';
+                satCells.forEach(c => c.style.opacity = '1');
+                sunCells.forEach(c => c.style.opacity = '1');
+            }
+        }
+    </script>
+</body>
+</html>
