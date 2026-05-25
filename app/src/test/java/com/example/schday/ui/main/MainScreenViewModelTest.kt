@@ -54,13 +54,14 @@ class MainScreenViewModelTest {
     fun insertHomework_updatesHomeworkList() = runTest {
         val repository = FakeDataRepository()
         val viewModel = MainScreenViewModel(repository)
-        val homework = Homework(id = 1, courseId = 1, title = "Math PS1", description = "Problems 1-10", deadline = 1772841600000L, isCompleted = false)
+        val originalSize = repository.getAllHomework().first().size
+        val homework = Homework(id = 99, courseId = 1, title = "Math PS1", description = "Problems 1-10", deadline = 1772841600000L, isCompleted = false)
         
         viewModel.insertHomework(homework)
         
         val homeworkList = repository.getAllHomework().first()
-        assertEquals(1, homeworkList.size)
-        assertEquals("Math PS1", homeworkList.first().title)
+        assertEquals(originalSize + 1, homeworkList.size)
+        assertEquals("Math PS1", homeworkList.last().title)
     }
 }
 
@@ -105,13 +106,14 @@ private class FakeDataRepository : DataRepository {
         emit(coursesFlow.value.find { it.course.id == courseId })
     }
 
-    override suspend fun saveCourseWithSlots(course: Course, slots: List<ScheduleSlot>) {
+    override suspend fun saveCourseWithSlots(course: Course, slots: List<ScheduleSlot>): Long {
         val list = coursesFlow.value.toMutableList()
         list.removeAll { it.course.id == course.id }
         val id = if (course.id == 0) list.size + 1 else course.id
         val newCourse = course.copy(id = id)
         list.add(CourseWithSchedules(newCourse, slots.map { it.copy(courseId = id) }, emptyList()))
         coursesFlow.value = list
+        return id.toLong()
     }
 
     override suspend fun deleteCourse(course: Course) {

@@ -61,11 +61,12 @@ interface CourseDao {
     suspend fun deleteScheduleSlotsForCourse(courseId: Int)
 
     @Transaction
-    suspend fun saveCourseWithSlots(course: Course, slots: List<ScheduleSlot>) {
+    suspend fun saveCourseWithSlots(course: Course, slots: List<ScheduleSlot>): Long {
         val courseId = insertCourse(course).toInt()
         deleteScheduleSlotsForCourse(courseId)
         val slotsWithId = slots.map { it.copy(courseId = courseId) }
         insertScheduleSlots(slotsWithId)
+        return courseId.toLong()
     }
 
     @Transaction

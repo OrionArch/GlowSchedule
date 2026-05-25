@@ -16,7 +16,7 @@ interface DataRepository {
     // Course & Schedule
     fun getCoursesBySemester(semesterId: Int): Flow<List<CourseWithSchedules>>
     fun getCourseById(courseId: Int): Flow<CourseWithSchedules?>
-    suspend fun saveCourseWithSlots(course: Course, slots: List<ScheduleSlot>)
+    suspend fun saveCourseWithSlots(course: Course, slots: List<ScheduleSlot>): Long
     suspend fun deleteCourse(course: Course)
 
     // Homework
@@ -49,7 +49,7 @@ class DefaultDataRepository(private val db: AppDatabase) : DataRepository {
         courseDao.getCoursesBySemester(semesterId)
     override fun getCourseById(courseId: Int): Flow<CourseWithSchedules?> = 
         courseDao.getCourseById(courseId)
-    override suspend fun saveCourseWithSlots(course: Course, slots: List<ScheduleSlot>) = 
+    override suspend fun saveCourseWithSlots(course: Course, slots: List<ScheduleSlot>): Long = 
         courseDao.saveCourseWithSlots(course, slots)
     override suspend fun deleteCourse(course: Course) = 
         courseDao.deleteCourse(course)

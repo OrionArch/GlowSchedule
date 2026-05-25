@@ -67,40 +67,135 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
 
             repository.getAllSemesters().first().let { list ->
                 if (list.isEmpty()) {
-                    val calendar = Calendar.getInstance()
-                    calendar.firstDayOfWeek = Calendar.MONDAY
-                    calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-                    calendar.set(Calendar.HOUR_OF_DAY, 0)
-                    calendar.set(Calendar.MINUTE, 0)
-                    calendar.set(Calendar.SECOND, 0)
-                    calendar.set(Calendar.MILLISECOND, 0)
-                    val semesterId = repository.insertSemester(
-                        Semester(
-                            name = "2026 春季学期",
-                            startDate = calendar.timeInMillis,
-                            totalWeeks = 20,
-                            isCurrent = true
-                        )
-                    ).toInt()
-
-                    val math = Course(semesterId = semesterId, name = "人工智能导论", teacher = "林教授", colorHex = "#C7E2F7")
-                    repository.saveCourseWithSlots(
-                        math,
-                        listOf(
-                            ScheduleSlot(courseId = 0, dayOfWeek = 1, startPeriod = 1, endPeriod = 2, classroom = "数智楼 404", activeWeeks = "1-20"),
-                            ScheduleSlot(courseId = 0, dayOfWeek = 3, startPeriod = 3, endPeriod = 4, classroom = "数智楼 404", activeWeeks = "1-20")
-                        )
-                    )
-
-                    val english = Course(semesterId = semesterId, name = "算法与数据结构", teacher = "李教授", colorHex = "#E2D4F0")
-                    repository.saveCourseWithSlots(
-                        english,
-                        listOf(
-                            ScheduleSlot(courseId = 0, dayOfWeek = 2, startPeriod = 3, endPeriod = 4, classroom = "信工楼 201", activeWeeks = "1-20")
-                        )
-                    )
+                    loadDemoData()
                 }
             }
+        }
+    }
+
+    private suspend fun loadDemoData() {
+        val calendar = Calendar.getInstance()
+        calendar.firstDayOfWeek = Calendar.MONDAY
+        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val semesterId = repository.insertSemester(
+            Semester(
+                name = "2026 春季学期",
+                startDate = calendar.timeInMillis,
+                totalWeeks = 20,
+                isCurrent = true
+            )
+        ).toInt()
+
+        // 1. 人工智能导论
+        val aiId = repository.saveCourseWithSlots(
+            Course(semesterId = semesterId, name = "人工智能导论", teacher = "林教授", colorHex = "#D6E4FF"),
+            listOf(
+                ScheduleSlot(courseId = 0, dayOfWeek = 1, startPeriod = 1, endPeriod = 2, classroom = "数智楼 404", activeWeeks = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"),
+                ScheduleSlot(courseId = 0, dayOfWeek = 3, startPeriod = 3, endPeriod = 4, classroom = "数智楼 404", activeWeeks = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20")
+            )
+        ).toInt()
+
+        // 2. 算法与数据结构
+        val algoId = repository.saveCourseWithSlots(
+            Course(semesterId = semesterId, name = "算法与数据结构", teacher = "李教授", colorHex = "#F3E0EC"),
+            listOf(
+                ScheduleSlot(courseId = 0, dayOfWeek = 2, startPeriod = 3, endPeriod = 4, classroom = "信工楼 201", activeWeeks = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20")
+            )
+        ).toInt()
+
+        // 3. 编译原理
+        val compilerId = repository.saveCourseWithSlots(
+            Course(semesterId = semesterId, name = "编译原理", teacher = "王教授", colorHex = "#FFD3D3"),
+            listOf(
+                ScheduleSlot(courseId = 0, dayOfWeek = 4, startPeriod = 1, endPeriod = 2, classroom = "理学楼 102", activeWeeks = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16"),
+                ScheduleSlot(courseId = 0, dayOfWeek = 5, startPeriod = 5, endPeriod = 6, classroom = "理学楼 102", activeWeeks = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16")
+            )
+        ).toInt()
+
+        // 4. 计算机网络
+        repository.saveCourseWithSlots(
+            Course(semesterId = semesterId, name = "计算机网络", teacher = "张教授", colorHex = "#D2F4EA"),
+            listOf(
+                ScheduleSlot(courseId = 0, dayOfWeek = 1, startPeriod = 5, endPeriod = 6, classroom = "实验楼 Rm 504", activeWeeks = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16")
+            )
+        )
+
+        // 5. 大学物理
+        repository.saveCourseWithSlots(
+            Course(semesterId = semesterId, name = "大学物理", teacher = "陈教授", colorHex = "#FFE8D6"),
+            listOf(
+                ScheduleSlot(courseId = 0, dayOfWeek = 3, startPeriod = 1, endPeriod = 2, classroom = "教一 101", activeWeeks = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16")
+            )
+        )
+
+        // 3 Example homework tasks
+        val now = System.currentTimeMillis()
+        repository.insertHomework(
+            Homework(
+                courseId = compilerId,
+                title = "书面作业：词法分析器构建练习",
+                description = "练习手写 DFA 和 NFA 转换",
+                deadline = now + 24 * 60 * 60 * 1000 // 1 day later
+            )
+        )
+        repository.insertHomework(
+            Homework(
+                courseId = algoId,
+                title = "大作业：红黑树的插入与删除实现",
+                description = "实现完整的树旋转和自平衡着色逻辑",
+                deadline = now + 48 * 60 * 60 * 1000 // 2 days later
+            )
+        )
+        repository.insertHomework(
+            Homework(
+                courseId = aiId,
+                title = "实验：利用 PyTorch 构建简单神经网络",
+                description = "实现 MNIST 手写数字分类任务",
+                deadline = now + 5 * 24 * 60 * 60 * 1000 // 5 days later
+            )
+        )
+    }
+
+    fun importGlowCode(data: com.example.schday.parser.GlowCodeManager.GlowCodeData, semesterId: Int) {
+        viewModelScope.launch {
+            data.courses.forEach { sharedCourse ->
+                val course = Course(
+                    semesterId = semesterId,
+                    name = sharedCourse.name,
+                    teacher = sharedCourse.teacher,
+                    colorHex = sharedCourse.colorHex
+                )
+                val slots = sharedCourse.slots.map { s ->
+                    ScheduleSlot(
+                        courseId = 0,
+                        dayOfWeek = s.dayOfWeek,
+                        startPeriod = s.startPeriod,
+                        endPeriod = s.endPeriod,
+                        classroom = s.classroom,
+                        activeWeeks = s.activeWeeks
+                    )
+                }
+                repository.saveCourseWithSlots(course, slots)
+            }
+        }
+    }
+
+    fun clearAllData() {
+        viewModelScope.launch {
+            // Delete all semesters which cascades to courses, slots, homework
+            repository.getAllSemesters().first().forEach { sem ->
+                repository.deleteSemester(sem)
+            }
+        }
+    }
+
+    fun loadDemoDataManually() {
+        viewModelScope.launch {
+            loadDemoData()
         }
     }
 

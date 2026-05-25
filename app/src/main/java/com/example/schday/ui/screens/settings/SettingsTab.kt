@@ -52,7 +52,9 @@ fun SettingsTab(
     onUpdatePeriods: (List<PeriodTime>) -> Unit,
     onImportJson: (String) -> Unit,
     onExportJson: () -> String,
-    onImportClick: () -> Unit // Navigate to crawler import screen
+    onImportClick: () -> Unit, // Navigate to crawler import screen
+    onClearData: () -> Unit,
+    onLoadDemoData: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -375,6 +377,49 @@ fun SettingsTab(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("恢复备份")
+                    }
+                }
+            }
+        }
+
+        // 5. Data Reset & Debug Section
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("数据清理与演示", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                Text("如果在首次进入时清空了演示数据，或希望彻底重置全部课表学期并重新载入示例数据，可使用下方功能：", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            onClearData()
+                            Toast.makeText(context, "所有数据已成功清空！", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("清空所有数据")
+                    }
+
+                    Button(
+                        onClick = {
+                            onLoadDemoData()
+                            Toast.makeText(context, "示例演示数据已重新载入！", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1.1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    ) {
+                        Text("加载示例数据")
                     }
                 }
             }
