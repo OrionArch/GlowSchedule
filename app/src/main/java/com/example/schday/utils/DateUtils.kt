@@ -24,7 +24,25 @@ object DateUtils {
     }
 
     fun parseActiveWeeks(activeWeeksStr: String): List<Int> {
-        return activeWeeksStr.split(",").mapNotNull { it.trim().toIntOrNull() }
+        return activeWeeksStr.split(",").flatMap { part ->
+            val trimmed = part.trim()
+            val rangeParts = when {
+                trimmed.contains("-") -> trimmed.split("-")
+                trimmed.contains("~") -> trimmed.split("~")
+                else -> null
+            }
+            if (rangeParts != null && rangeParts.size == 2) {
+                val start = rangeParts[0].trim().toIntOrNull()
+                val end = rangeParts[1].trim().toIntOrNull()
+                if (start != null && end != null) {
+                    if (start <= end) (start..end).toList() else (end..start).toList()
+                } else {
+                    emptyList()
+                }
+            } else {
+                listOfNotNull(trimmed.toIntOrNull())
+            }
+        }
     }
 
     fun isWeekActive(activeWeeksStr: String, week: Int): Boolean {

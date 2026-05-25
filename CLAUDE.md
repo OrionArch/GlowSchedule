@@ -50,6 +50,28 @@ app/src/main/java/.../
 - minSdk 24 / targetSdk 36 / compileSdk 36
 - JDK 17 (Temurin)
 
+## Git Branching Strategy
+
+Trunk-Based Development with short-lived release branches (no permanent `develop` branch).
+
+**Long-lived branches**: `main` only — always buildable and testable.
+
+| Type | Naming | Lifetime | Example |
+|---|---|---|---|
+| Feature | `feature/<name>` | 1-3 days, merge & delete | `feature/week-view` |
+| Bugfix | `fix/<name>` | Hours, merge & delete | `fix/date-picker-crash` |
+| Chore | `chore/<name>` | Short, merge & delete | `chore/upgrade-compose` |
+| Release | `release/v<semver>` | During stabilization, delete after deploy | `release/v1.1.0` |
+| Hotfix | `hotfix/v<semver>` | Emergency, delete after deploy | `hotfix/v1.0.1` |
+
+**Rules**:
+- All work on `main` goes through PR (squash merge)
+- Feature branches live max 2-3 days; split longer work into smaller pieces
+- Release branches are cut from `main`, tagged, and deleted after production deploy
+- Hotfixes: fix on `main` first, cherry-pick to release branch if one exists
+- Version tags: `v<MAJOR>.<MINOR>.<PATCH>` (Semantic Versioning)
+- Commit messages: Conventional Commits (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`)
+
 ## Constraints
 
 - Do NOT add new Gradle modules

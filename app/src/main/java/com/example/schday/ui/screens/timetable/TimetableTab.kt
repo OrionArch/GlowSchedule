@@ -613,8 +613,10 @@ fun TimetableGrid(
             
             val sortedGroup = group.sortedWith { a, b ->
                 when {
-                    a.course.id == topCourseId -> 1
-                    b.course.id == topCourseId -> -1
+                    a.course.id == topCourseId && b.course.id != topCourseId -> 1
+                    b.course.id == topCourseId && a.course.id != topCourseId -> -1
+                    a.isActive && !b.isActive -> 1
+                    !a.isActive && b.isActive -> -1
                     else -> a.course.id.compareTo(b.course.id)
                 }
             }
