@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: [bug]
+body:
+  - type: dropdown
+    id: android-version
+    attributes:
+      label: Android Version
+      options:
+        - "14"
+        - "13"
+        - "12"
+        - "11"
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: device-model
+    attributes:
+      label: Device Model
+      placeholder: e.g. Pixel 8 Pro
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: App Version
+      placeholder: e.g. 1.2.0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Open the app
+        2. Tap on ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain the issue.
+    validations:
+      required: false
