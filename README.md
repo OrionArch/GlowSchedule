@@ -7,18 +7,20 @@ A modern Android class schedule app built with Kotlin & Jetpack Compose.
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue)
 ![targetSdk 36](https://img.shields.io/badge/targetSdk-36-informational)
 
-<!-- TODO: Add screenshots here -->
+## Screenshots
+
+_Screenshots coming soon._
 
 ## Features
 
-- **课程表管理** (Schedule Management) — Add, edit, and delete courses with an intuitive UI
-- **Excel 导入** — Import course schedules from Excel files
-- **WebView 教务系统导入** — Import courses from educational portals via WebView
-- **桌面小组件** (Glance Widget) — Home screen widget showing today's schedule
-- **课前提醒** (Class Reminders) — Alarm notifications before class starts
-- **暗色模式 / Material You** — Dynamic theming with dark mode support
-- **数据备份恢复** (Backup & Restore) — Export and import your data
-- **GlowCode 管理** — Parse and manage course codes
+- **Schedule Management** (课程表管理) — Add, edit, and delete courses with an intuitive UI
+- **Excel Import** (Excel 导入) — Import course schedules from Excel/CSV files
+- **WebView Import** (WebView 教务系统导入) — Import courses from educational portals via WebView
+- **Home Screen Widget** (桌面小组件) — Home screen widget showing today's schedule
+- **Class Reminders** (课前提醒) — Alarm notifications before class starts
+- **Dark Mode / Material You** (暗色模式 / Material You) — Dynamic theming with dark mode support
+- **Backup & Restore** (数据备份恢复) — Export and import your data
+- **GlowCode Management** (GlowCode 管理) — Parse and manage course codes
 
 ## Tech Stack
 
@@ -41,6 +43,20 @@ A modern Android class schedule app built with Kotlin & Jetpack Compose.
 - **UI:** Jetpack Compose with Material 3
 - **Navigation:** Navigation 3
 
+```mermaid
+graph TD
+    MainActivity --> MainNavigation
+    MainNavigation --> MainScreen
+    MainScreen --> HomeTab
+    MainScreen --> TimetableTab
+    MainScreen --> TodoTab
+    MainScreen --> SettingsTab
+    HomeTab --> MainScreenViewModel
+    TimetableTab --> MainScreenViewModel
+    MainScreenViewModel --> DataRepository
+    DataRepository --> Room[(Room DB)]
+```
+
 ## Getting Started
 
 ### Prerequisites
@@ -52,8 +68,8 @@ A modern Android class schedule app built with Kotlin & Jetpack Compose.
 ### Clone
 
 ```bash
-git clone https://github.com/your-username/sch-day.git
-cd sch-day
+git clone https://github.com/OrionArch/GlowSchedule.git
+cd GlowSchedule
 ```
 
 ### Build
@@ -144,4 +160,4 @@ This project is licensed under the Apache License 2.0 — see the [LICENSE](LICE
 
 ### Development Tools
 
-[oh-my-claudecode](https://github.com/user/oh-my-claudecode)
+[oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode)

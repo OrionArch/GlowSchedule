@@ -55,3 +55,42 @@ app/src/main/java/.../
 - Do NOT add new Gradle modules
 - Do NOT switch Room compiler from KAPT to KSP
 - Do NOT modify ProGuard rules without testing a release build
+
+## Common Tasks
+
+### Add a new tab screen
+1. Create composable function in `ui/screens/<name>/<Name>Tab.kt`
+2. Add NavKey data class in `NavigationKeys.kt`
+3. Register route in `Navigation.kt` entryProvider
+4. Add tab to MainScreen.kt bottom navigation
+
+### Add a new database entity
+1. Define @Entity data class in `data/entity/Entities.kt`
+2. Add @Dao interface methods in `data/dao/AppDaos.kt`
+3. Add entity to AppDatabase.kt entities array (increment version + add migration)
+4. Add repository methods in `DataRepository.kt`
+
+### Modify the Glance widget
+1. Edit `widget/ScheduleWidget.kt` for UI changes
+2. Update Glance state provider if needed
+3. Widget metadata in `res/xml/schedule_widget_info.xml`
+
+### Add a new alarm action
+1. Define action string constant in `scheduler/ClassAlarmReceiver.kt`
+2. Add handling case in onReceive()
+3. Schedule via AlarmScheduler methods
+
+## Known Gotchas
+
+- UI strings are hardcoded in Chinese — not in `strings.xml` (only `app_name` exists there)
+- Package name is `com.example.schday` — not a proper reverse-domain name
+- Room schema version is 1 — entity changes require a Migration class
+- Room uses KAPT (not KSP) — do not switch (project constraint)
+- ProGuard minification is enabled for release builds — test release builds before shipping
+
+## Key Patterns
+
+- **Navigation 3**: NavKey sealed class + `rememberNavBackStack` + `NavDisplay` with `entryProvider` mapping
+- **Glance Widget**: `GlanceAppWidget` subclass + `GlanceAppWidgetReceiver` + state management via `updateAppWidgetState`
+- **AlarmManager**: Exact alarms via `AlarmManager.setAlarmClock()` with `PendingIntent` to `BroadcastReceiver` + `BootReceiver` for reschedule on reboot
+- **Reactive Data**: Kotlin `Flow` from Room DAO → DataRepository interface → ViewModel `StateFlow` → Compose collection
