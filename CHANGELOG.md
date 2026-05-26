@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-26
+
+### Added
+
+- Multi-theme selector with multiple color schemes
+- Custom date picker components with improved interaction
+- Now & Next Glance widget showing current/upcoming class
+- Course clash detection dialog when adding overlapping courses
+
+### Changed
+
+- Compact 2×1 schedule widget with progress indicator
+- Widget auto-refreshes on data changes (courses, semesters, homework)
+
+### Removed
+
+- Physics sandbox widget from HomeTab
+
+## [1.0.1] - 2026-05-25
+
+### Added
+
+- Release signing configuration
+- DateUtils unit tests
+- Git branching strategy documentation
+
+### Changed
+
+- Refactored ImportCoursesScreen with cleaner parsing logic
+- Enhanced DateUtils with improved date handling
+
 ## [1.0.0] - 2025-05-25
 
 ### Added

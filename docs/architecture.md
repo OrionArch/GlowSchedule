@@ -179,8 +179,9 @@ Three navigation keys:
 ### ScheduleWidget
 
 - **Source:** `app/src/main/java/com/example/schday/widget/ScheduleWidget.kt`
-- A Jetpack Glance home screen widget.
-- Displays today's schedule for the current semester: shows the current week number, day of week, and up to 3 upcoming classes with time and classroom.
+- A compact 2×1 Jetpack Glance home screen widget.
+- Shows the current/next class with time, classroom, and progress indicator when a class is in session.
+- `ScheduleWidgetReceiver.updateWidget(context)` triggers manual refresh; `DefaultDataRepository` auto-triggers widget updates on all write operations (insert/update/delete for courses, semesters, homework).
 - Uses `DateUtils.getCurrentWeek()` and `DateUtils.isWeekActive()` to filter slots by the current week.
 - Creates its own `DefaultDataRepository` instance via `AppDatabase.getDatabase(context)`.
 

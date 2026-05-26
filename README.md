@@ -9,7 +9,16 @@ A modern Android class schedule app built with Kotlin & Jetpack Compose.
 
 ## Screenshots
 
-_Screenshots coming soon._
+<table>
+  <tr>
+    <td><img src="docs/screenshots/home.png" width="200" alt="Home Tab"/></td>
+    <td><img src="docs/screenshots/timetable.png" width="200" alt="Timetable Tab"/></td>
+    <td><img src="docs/screenshots/todo.png" width="200" alt="Todo Tab"/></td>
+    <td><img src="docs/screenshots/widget.png" width="200" alt="Schedule Widget"/></td>
+  </tr>
+</table>
+
+_Screenshots will be added when available. Run the app to see the full experience._
 
 ## Features
 
