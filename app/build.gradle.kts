@@ -18,10 +18,11 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("../glowschedule.jks")
-            storePassword = "glowschedule123"
-            keyAlias = "glowschedule"
-            keyPassword = "glowschedule123"
+            storeFile = System.getenv("GLOW_KEYSTORE_FILE")?.let { file(it) }
+                ?: file("../glowschedule.jks")
+            storePassword = System.getenv("GLOW_KEYSTORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("GLOW_KEY_ALIAS") ?: "glowschedule"
+            keyPassword = System.getenv("GLOW_KEY_PASSWORD") ?: ""
         }
     }
     buildTypes {
@@ -32,8 +33,8 @@ android {
         }
     }
     lint {
-        checkReleaseBuilds = false
-        abortOnError = false
+        checkReleaseBuilds = true
+        abortOnError = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

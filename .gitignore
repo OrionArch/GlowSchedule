@@ -54,6 +54,9 @@ captures/
 *.env
 credentials.*
 
+# Local database
+local_db
+
 # OS files
 .DS_Store
 Thumbs.db

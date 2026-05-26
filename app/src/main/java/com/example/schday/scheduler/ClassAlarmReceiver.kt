@@ -66,38 +66,50 @@ class ClassAlarmReceiver : BroadcastReceiver() {
                 // 2. Automate Silent Profile at exact start time
                 val autoMute = sharedPrefs.getBoolean("auto_mute_enabled", false)
                 if (autoMute) {
-                    // Save previous ringer mode state
-                    val prevRinger = audioManager.ringerMode
-                    sharedPrefs.edit().putInt("previous_ringer_mode", prevRinger).apply()
+                    try {
+                        // Save previous ringer mode state
+                        val prevRinger = audioManager.ringerMode
+                        sharedPrefs.edit().putInt("previous_ringer_mode", prevRinger).apply()
 
-                    val muteType = sharedPrefs.getInt("auto_mute_type", 0) // 0 = DND, 1 = Vibrate, 2 = Silent
-                    when (muteType) {
-                        0 -> {
-                            // Do Not Disturb (DND)
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager.isNotificationPolicyAccessGranted) {
-                                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
-                            } else {
-                                // Fallback to silent if DND not allowed
-                                audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+                        val muteType = sharedPrefs.getInt("auto_mute_type", 0) // 0 = DND, 1 = Vibrate, 2 = Silent
+                        when (muteType) {
+                            0 -> {
+                                // Do Not Disturb (DND)
+                                if (notificationManager.isNotificationPolicyAccessGranted) {
+                                    notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
+                                } else {
+                                    // Fallback to silent if DND not allowed
+                                    audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+                                }
                             }
+                            1 -> audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE
+                            2 -> audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
                         }
-                        1 -> audioManager.ringerMode = AudioManager.RINGER_MODE_VIBRATE
-                        2 -> audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
+                    } catch (e: Exception) {
+                        android.util.Log.e("ClassAlarmReceiver", "Failed to set audio/DND profile (e.g. missing permission)", e)
                     }
                 }
+                // Trigger widget update on class start
+                com.example.schday.widget.ScheduleWidgetReceiver.updateWidget(context)
             }
             ACTION_CLASS_END -> {
                 // Restore previous audio profile
                 val autoMute = sharedPrefs.getBoolean("auto_mute_enabled", false)
                 if (autoMute) {
-                    val prevRinger = sharedPrefs.getInt("previous_ringer_mode", AudioManager.RINGER_MODE_NORMAL)
-                    audioManager.ringerMode = prevRinger
+                    try {
+                        val prevRinger = sharedPrefs.getInt("previous_ringer_mode", AudioManager.RINGER_MODE_NORMAL)
+                        audioManager.ringerMode = prevRinger
 
-                    // Restore DND interruption filter
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager.isNotificationPolicyAccessGranted) {
-                        notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+                        // Restore DND interruption filter
+                        if (notificationManager.isNotificationPolicyAccessGranted) {
+                            notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("ClassAlarmReceiver", "Failed to restore audio/DND profile (e.g. missing permission)", e)
                     }
                 }
+                // Trigger widget update on class end
+                com.example.schday.widget.ScheduleWidgetReceiver.updateWidget(context)
             }
             ACTION_HOMEWORK_REMINDER -> {
                 // Reschedule next day's alarm
@@ -146,6 +158,14 @@ class ClassAlarmReceiver : BroadcastReceiver() {
                     }
                 }
             }
+            ACTION_MIDNIGHT_RESCHEDULE -> {
+                val db = AppDatabase.getDatabase(context)
+                val repository = DefaultDataRepository(db, context)
+                CoroutineScope(Dispatchers.IO).launch {
+                    AlarmScheduler.scheduleTodayAlarms(context, repository)
+                    com.example.schday.widget.ScheduleWidgetReceiver.updateWidget(context)
+                }
+            }
         }
     }
 
@@ -154,17 +174,23 @@ class ClassAlarmReceiver : BroadcastReceiver() {
         const val ACTION_CLASS_START = "com.example.schday.ACTION_CLASS_START"
         const val ACTION_CLASS_END = "com.example.schday.ACTION_CLASS_END"
         const val ACTION_HOMEWORK_REMINDER = "com.example.schday.ACTION_HOMEWORK_REMINDER"
+        const val ACTION_MIDNIGHT_RESCHEDULE = "com.example.schday.ACTION_MIDNIGHT_RESCHEDULE"
     }
 }
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+        val action = intent.action
+        if (action == Intent.ACTION_BOOT_COMPLETED ||
+            action == Intent.ACTION_TIME_CHANGED ||
+            action == Intent.ACTION_TIMEZONE_CHANGED ||
+            action == Intent.ACTION_DATE_CHANGED) {
             val db = AppDatabase.getDatabase(context)
-            val repository = DefaultDataRepository(db)
+            val repository = DefaultDataRepository(db, context)
             CoroutineScope(Dispatchers.IO).launch {
                 AlarmScheduler.scheduleTodayAlarms(context, repository)
                 AlarmScheduler.scheduleHomeworkReminderAlarm(context)
+                com.example.schday.widget.ScheduleWidgetReceiver.updateWidget(context)
             }
         }
     }
@@ -213,7 +239,47 @@ object AlarmScheduler {
         val sharedPrefs = context.getSharedPreferences("schday_settings", Context.MODE_PRIVATE)
         val offsetMinutes = sharedPrefs.getInt("pre_class_reminder_offset", 10)
 
-        var requestCode = 0
+        // Cancel previously scheduled slot alarms to avoid leaks/orphans
+        val prevScheduledIdsStr = sharedPrefs.getString("scheduled_slot_ids", "") ?: ""
+        if (prevScheduledIdsStr.isNotEmpty()) {
+            val prevScheduledIds = prevScheduledIdsStr.split(",").mapNotNull { it.toIntOrNull() }
+            for (slotId in prevScheduledIds) {
+                val reminderIntent = Intent(context, ClassAlarmReceiver::class.java).apply {
+                    action = ClassAlarmReceiver.ACTION_CLASS_REMINDER
+                }
+                val reminderPI = PendingIntent.getBroadcast(
+                    context, slotId * 3 + 0, reminderIntent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                )
+                if (reminderPI != null) {
+                    alarmManager.cancel(reminderPI)
+                    reminderPI.cancel()
+                }
+
+                val startIntent = Intent(context, ClassAlarmReceiver::class.java).apply {
+                    action = ClassAlarmReceiver.ACTION_CLASS_START
+                }
+                val startPI = PendingIntent.getBroadcast(
+                    context, slotId * 3 + 1, startIntent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                )
+                if (startPI != null) {
+                    alarmManager.cancel(startPI)
+                    startPI.cancel()
+                }
+
+                val endIntent = Intent(context, ClassAlarmReceiver::class.java).apply {
+                    action = ClassAlarmReceiver.ACTION_CLASS_END
+                }
+                val endPI = PendingIntent.getBroadcast(
+                    context, slotId * 3 + 2, endIntent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                )
+                if (endPI != null) {
+                    alarmManager.cancel(endPI)
+                    endPI.cancel()
+                }
+            }
+        }
+
+        val newlyScheduledIds = mutableListOf<Int>()
 
         for (c in courses) {
             for (slot in c.slots) {
@@ -221,6 +287,8 @@ object AlarmScheduler {
                 if (slot.dayOfWeek == dayOfWeek && DateUtils.isWeekActive(slot.activeWeeks, currentWeek)) {
                     val startPeriodTime = periods.find { it.periodNumber == slot.startPeriod } ?: continue
                     val endPeriodTime = periods.find { it.periodNumber == slot.endPeriod } ?: continue
+
+                    newlyScheduledIds.add(slot.id)
 
                     // 1. Reminder alarm (fires offsetMinutes before class start)
                     val startTrigger = getTriggerTime(startPeriodTime.startTime)
@@ -231,34 +299,53 @@ object AlarmScheduler {
                         putExtra("classroom", slot.classroom)
                     }
                     val reminderPI = PendingIntent.getBroadcast(
-                        context, requestCode++, reminderIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        context, slot.id * 3 + 0, reminderIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
                     scheduleAlarm(alarmManager, reminderTrigger, reminderPI)
 
-                    // 2. Start silent mode alarm (fires exactly at class start)
+                    // 2. Start silent mode alarm (fires 5 seconds after class start to ensure widget updates past the boundary)
                     val startIntent = Intent(context, ClassAlarmReceiver::class.java).apply {
                         action = ClassAlarmReceiver.ACTION_CLASS_START
                         putExtra("course_name", c.course.name)
                         putExtra("classroom", slot.classroom)
                     }
                     val startPI = PendingIntent.getBroadcast(
-                        context, requestCode++, startIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        context, slot.id * 3 + 1, startIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
-                    scheduleAlarm(alarmManager, startTrigger, startPI)
+                    scheduleAlarm(alarmManager, startTrigger + 5000, startPI)
 
-                    // 3. End silent mode alarm (fires exactly at class end)
+                    // 3. End silent mode alarm (fires 5 seconds after class end to ensure widget updates past the boundary)
                     val endTrigger = getTriggerTime(endPeriodTime.endTime)
                     val endIntent = Intent(context, ClassAlarmReceiver::class.java).apply {
                         action = ClassAlarmReceiver.ACTION_CLASS_END
                         putExtra("course_name", c.course.name)
                     }
                     val endPI = PendingIntent.getBroadcast(
-                        context, requestCode++, endIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        context, slot.id * 3 + 2, endIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
-                    scheduleAlarm(alarmManager, endTrigger, endPI)
+                    scheduleAlarm(alarmManager, endTrigger + 5000, endPI)
                 }
             }
         }
+
+        // Save scheduled slot IDs for next rescheduling cancel step
+        sharedPrefs.edit().putString("scheduled_slot_ids", newlyScheduledIds.joinToString(",")).apply()
+
+        // 4. Schedule next midnight reschedule alarm (at 00:01 of the next day)
+        val midnightCalendar = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 1)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val rescheduleIntent = Intent(context, ClassAlarmReceiver::class.java).apply {
+            action = ClassAlarmReceiver.ACTION_MIDNIGHT_RESCHEDULE
+        }
+        val reschedulePI = PendingIntent.getBroadcast(
+            context, 8888, rescheduleIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, midnightCalendar.timeInMillis, reschedulePI)
     }
 
     private fun scheduleAlarm(alarmManager: AlarmManager, triggerTime: Long, pendingIntent: PendingIntent) {
