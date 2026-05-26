@@ -27,7 +27,10 @@ import androidx.compose.ui.unit.sp
 import com.example.schday.data.entity.CourseWithSchedules
 import com.example.schday.data.entity.PeriodTime
 import com.example.schday.data.entity.Semester
+import com.example.schday.theme.GlowTheme
 import com.example.schday.theme.getContrastingTextColor
+import com.example.schday.theme.paperTexture
+import com.example.schday.theme.glowOrShadow
 import com.example.schday.utils.DateUtils
 import kotlinx.coroutines.launch
 import android.content.Context
@@ -47,6 +50,7 @@ fun TimetableTab(
     semester: Semester?,
     courses: List<CourseWithSchedules>,
     periods: List<PeriodTime>,
+    appTheme: GlowTheme,
     selectedWeek: Int?,
     onWeekSelected: (Int) -> Unit,
     onCourseClick: (Int) -> Unit
@@ -60,6 +64,12 @@ fun TimetableTab(
 
     val currentWeek = DateUtils.getCurrentWeek(semester.startDate, semester.totalWeeks)
     val coroutineScope = rememberCoroutineScope()
+    val borderStroke = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    }
     
     val pagerState = rememberPagerState(
         initialPage = ((selectedWeek ?: currentWeek) - 1).coerceIn(0, semester.totalWeeks - 1),
@@ -218,6 +228,7 @@ fun TimetableTab(
                         courses = courses,
                         periods = periods,
                         activeWeek = pageWeek,
+                        appTheme = appTheme,
                         showOnlyCurrentWeek = showOnlyCurrentWeek,
                         hideWeekends = hideWeekends,
                         topCourseIds = topCourseIds,
@@ -294,7 +305,7 @@ fun TimetableTab(
                         Box(
                             modifier = Modifier
                                 .size(16.dp)
-                                .background(Color(android.graphics.Color.parseColor(course.colorHex)), RoundedCornerShape(4.dp))
+                                .background(Color(android.graphics.Color.parseColor(course.colorHex)), MaterialTheme.shapes.small)
                         )
                         Text(
                             text = course.name,
@@ -341,9 +352,13 @@ fun TimetableTab(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .glowOrShadow(appTheme, isFeatured = false)
+                                .paperTexture(appTheme),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium,
+                            border = borderStroke
                         ) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
@@ -387,7 +402,7 @@ fun TimetableTab(
                                     showBottomSheet = false
                                 },
                                 modifier = Modifier.weight(1.2f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = MaterialTheme.shapes.medium
                             ) {
                                 Text("置顶显示")
                             }
@@ -399,7 +414,7 @@ fun TimetableTab(
                                 onCourseClick(course.id)
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Text("编辑课程")
                         }
@@ -493,6 +508,7 @@ fun TimetableGrid(
     courses: List<CourseWithSchedules>,
     periods: List<PeriodTime>,
     activeWeek: Int,
+    appTheme: GlowTheme,
     showOnlyCurrentWeek: Boolean,
     hideWeekends: Boolean,
     topCourseIds: Map<String, Int>,
@@ -651,15 +667,28 @@ fun TimetableGrid(
                         .height(cardHeight)
                         .padding(2.dp)
                 ) {
+                    val cardBorder = if (!isActive) {
+                        BorderStroke(
+                            width = if (appTheme == GlowTheme.VINTAGE_LIBRARY) 0.5.dp else 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        )
+                    } else {
+                        when (appTheme) {
+                            GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                            GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                            GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+                            GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        }
+                    }
                     Card(
                         modifier = Modifier
                             .fillMaxSize()
                             .clickable { onCourseClick(sortedGroup) }
-                            .alpha(if (isActive) 1f else 0.45f),
+                            .alpha(if (isActive) 1f else 0.45f)
+                            .paperTexture(appTheme),
                         colors = CardDefaults.cardColors(containerColor = cardColor),
-                        shape = RoundedCornerShape(8.dp),
-                        border = if (!isActive) BorderStroke(1.dp, Color.Gray.copy(alpha = 0.5f)) 
-                                 else BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
+                        shape = MaterialTheme.shapes.medium,
+                        border = cardBorder
                     ) {
                         Column(
                             modifier = Modifier

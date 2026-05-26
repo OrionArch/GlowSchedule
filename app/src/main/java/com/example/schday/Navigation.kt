@@ -10,7 +10,11 @@ import com.example.schday.ui.screens.edit.AddEditCourseScreen
 import com.example.schday.ui.screens.import.ImportCoursesScreen
 
 @Composable
-fun MainNavigation(repository: DataRepository) {
+fun MainNavigation(
+    repository: DataRepository,
+    appTheme: com.example.schday.theme.GlowTheme,
+    onThemeChange: (com.example.schday.theme.GlowTheme) -> Unit
+) {
   val backStack = rememberNavBackStack(Main)
 
   NavDisplay(
@@ -21,19 +25,23 @@ fun MainNavigation(repository: DataRepository) {
         entry<Main> {
           MainScreen(
             repository = repository,
-            onItemClick = { navKey -> backStack.add(navKey) }
+            onItemClick = { navKey -> backStack.add(navKey) },
+            appTheme = appTheme,
+            onThemeChange = onThemeChange
           )
         }
         entry<AddEditCourse> { key ->
           AddEditCourseScreen(
             repository = repository,
             courseId = key.courseId,
+            appTheme = appTheme,
             onBack = { backStack.removeLastOrNull() }
           )
         }
         entry<ImportCourses> {
           ImportCoursesScreen(
             repository = repository,
+            appTheme = appTheme,
             onBack = { backStack.removeLastOrNull() }
           )
         }

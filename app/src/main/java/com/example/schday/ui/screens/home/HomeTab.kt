@@ -30,13 +30,28 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.example.schday.data.entity.CourseWithSchedules
 import com.example.schday.data.entity.PeriodTime
 import com.example.schday.data.entity.ScheduleSlot
 import com.example.schday.data.entity.Semester
+import com.example.schday.theme.GlowTheme
 import com.example.schday.theme.getContrastingTextColor
+import com.example.schday.theme.glowOrShadow
+import com.example.schday.theme.paperTexture
+import com.example.schday.theme.GlowDivider
+import com.example.schday.theme.bounceClickable
+import com.example.schday.theme.interactiveTilt
 import com.example.schday.utils.DateUtils
 import java.text.SimpleDateFormat
 import java.util.*
@@ -46,6 +61,7 @@ fun HomeTab(
     semester: Semester?,
     courses: List<CourseWithSchedules>,
     periods: List<PeriodTime>,
+    appTheme: GlowTheme,
     onAddCourseClick: () -> Unit
 ) {
     if (semester == null) {
@@ -210,46 +226,124 @@ fun HomeTab(
                             )
                         }
                         // Mascot badge
-                        Column(
-                            modifier = Modifier
-                                .background(
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                    shape = RoundedCornerShape(16.dp)
+                        var showSpeechBubble by remember { mutableStateOf(false) }
+                        var speechText by remember { mutableStateOf("") }
+                        val workloadCount = todaySlots.size
+                        
+                        val mascotArt = when {
+                            workloadCount == 0 -> "/\\_/\\\n( -.- )\n > Z <" // sleeping
+                            workloadCount in 1..2 -> "/\\_/\\\n( o.o )\n > ^ <" // normal
+                            workloadCount in 3..4 -> "/\\_/\\\n( ✪.✪ )\n > ✿ <" // focused
+                            else -> "/\\_/\\\n( >.< )\n > ~ <" // overworked
+                        }
+                        
+                        val mascotMood = when {
+                            workloadCount == 0 -> "睡觉中喵"
+                            workloadCount in 1..2 -> "元气满满"
+                            workloadCount in 3..4 -> "专心读书"
+                            else -> "学海无涯"
+                        }
+                        
+                        val speechQuotes = listOf(
+                            "高数课别睡觉，猫猫看着你呢 🐱",
+                            "完成作业了？奖励猫猫一罐小鱼干嘛！🐟",
+                            "今天课很少，是出去溜达的好天气喵！☀️",
+                            "要按时吃饭，胃痛的话猫猫会担心的 🥛",
+                            "有烦心事？摸摸猫猫的脑瓜吧！🐾",
+                            "今天居然有 $workloadCount 节课，挺住喵！🎒",
+                            "期末不挂科，全靠平时不划水喵 😜",
+                            "猫生漫漫，学习加油！奥利给！🚀"
+                        )
+                        
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            Column(
+                                modifier = Modifier
+                                    .interactiveTilt(appTheme)
+                                    .bounceClickable {
+                                        val idx = (speechQuotes.indices).random()
+                                        speechText = speechQuotes[idx]
+                                        showSpeechBubble = true
+                                        try {
+                                            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                                vibrator.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                vibrator.vibrate(20)
+                                            }
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                    }
+                                    .background(
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                        shape = MaterialTheme.shapes.medium
+                                    )
+                                    .border(
+                                        width = if (appTheme == GlowTheme.VINTAGE_LIBRARY) 0.5.dp else 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                        shape = MaterialTheme.shapes.medium
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = mascotArt,
+                                    fontSize = 8.sp,
+                                    lineHeight = 7.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                                    shape = RoundedCornerShape(16.dp)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "拾光猫 · $mascotMood",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "/\\_/\\\n( o.o )\n > ^ <",
-                                fontSize = 8.sp,
-                                lineHeight = 7.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "拾光猫 · 读书中",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
+                            }
+                            
+                            if (showSpeechBubble) {
+                                val yOffsetPx = with(androidx.compose.ui.platform.LocalDensity.current) { (-65).dp.roundToPx() }
+                                androidx.compose.ui.window.Popup(
+                                    alignment = Alignment.TopCenter,
+                                    offset = androidx.compose.ui.unit.IntOffset(0, yOffsetPx),
+                                    onDismissRequest = { showSpeechBubble = false }
+                                ) {
+                                    Card(
+                                        modifier = Modifier
+                                            .width(160.dp)
+                                            .bounceClickable { showSpeechBubble = false },
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                    ) {
+                                        Text(
+                                            text = speechText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.padding(8.dp),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
                 // Countdown Card
                 item {
-                    CountdownCard(status = countdownStatus)
+                    CountdownCard(status = countdownStatus, appTheme = appTheme)
                 }
 
                 // Custom experimental widgets
                 item {
-                    DndWidget(sharedPreferences = sharedPreferences)
+                    DndWidget(sharedPreferences = sharedPreferences, appTheme = appTheme)
+                }
+
+                // Stress Reliever Toy Box Sandbox
+                item {
+                    PhysicsToyBox(todaySlots = todaySlots, appTheme = appTheme)
                 }
 
                 if (activeSlot != null && nextSlot != null && activeSlot.second.classroom.isNotEmpty() && nextSlot.second.classroom.isNotEmpty() && activeSlot.second.classroom.take(3) != nextSlot.second.classroom.take(3)) {
@@ -258,7 +352,8 @@ fun HomeTab(
                             activeSlotName = activeSlot.first.course.name,
                             activeClassroom = activeSlot.second.classroom,
                             nextSlotName = nextSlot.first.course.name,
-                            nextClassroom = nextSlot.second.classroom
+                            nextClassroom = nextSlot.second.classroom,
+                            appTheme = appTheme
                         )
                     }
                 }
@@ -268,7 +363,8 @@ fun HomeTab(
                         SentimentWallWidget(
                             courseName = recentlyFinishedSlot.first.course.name,
                             courseId = recentlyFinishedSlot.first.course.id,
-                            sharedPreferences = sharedPreferences
+                            sharedPreferences = sharedPreferences,
+                            appTheme = appTheme
                         )
                     }
                 }
@@ -338,7 +434,8 @@ fun HomeTab(
                             colorHex = courseWithSchedules.course.colorHex,
                             isPast = isPast,
                             isActive = isActive,
-                            hasPendingHomework = courseWithSchedules.homework.any { !it.isCompleted }
+                            hasPendingHomework = courseWithSchedules.homework.any { !it.isCompleted },
+                            appTheme = appTheme
                         )
                     }
                 }
@@ -348,20 +445,24 @@ fun HomeTab(
 }
 
 @Composable
-fun CountdownCard(status: CountdownStatus) {
+fun CountdownCard(status: CountdownStatus, appTheme: GlowTheme) {
     val isDark = isSystemInDarkTheme()
-    val cardBg = if (isDark) Color(0x731E293B) else Color(0x73FFFFFF) // 45% white or dark slate
-    val cardBorder = if (isDark) Color(0x14FFFFFF) else Color(0x80FFFFFF) // 1px white border stroke
+    val cardBg = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
+    val borderStroke = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = cardBorder,
-                shape = RoundedCornerShape(24.dp)
-            ),
-        shape = RoundedCornerShape(24.dp),
+            .interactiveTilt(appTheme)
+            .glowOrShadow(appTheme, isFeatured = status.isActive)
+            .paperTexture(appTheme),
+        shape = MaterialTheme.shapes.large,
+        border = borderStroke,
         colors = CardDefaults.cardColors(containerColor = cardBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -493,9 +594,10 @@ fun CountdownCard(status: CountdownStatus) {
                         )
                     }
 
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-                        modifier = Modifier.padding(vertical = 4.dp)
+                    GlowDivider(
+                        appTheme = appTheme,
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
                     )
 
                     Text(
@@ -534,7 +636,8 @@ fun CourseTimelineItem(
     colorHex: String,
     isPast: Boolean,
     isActive: Boolean,
-    hasPendingHomework: Boolean = false
+    hasPendingHomework: Boolean = false,
+    appTheme: GlowTheme
 ) {
     val cardColor = Color(android.graphics.Color.parseColor(colorHex))
     val textColor = getContrastingTextColor(colorHex, isSystemInDarkTheme())
@@ -627,10 +730,21 @@ fun CourseTimelineItem(
         // Course Card
         Card(
             modifier = Modifier
-                .weight(1f),
+                .weight(1f)
+                .glowOrShadow(appTheme, isFeatured = isActive)
+                .paperTexture(appTheme),
             colors = CardDefaults.cardColors(containerColor = cardColor),
-            shape = RoundedCornerShape(20.dp),
-            border = if (isActive) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+            shape = MaterialTheme.shapes.medium,
+            border = if (isActive) {
+                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+            } else {
+                when (appTheme) {
+                    GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    else -> null
+                }
+            }
         ) {
             Column(
                 modifier = Modifier
@@ -788,7 +902,7 @@ private fun computeCountdown(
 }
 
 @Composable
-fun DndWidget(sharedPreferences: android.content.SharedPreferences) {
+fun DndWidget(sharedPreferences: android.content.SharedPreferences, appTheme: GlowTheme) {
     var overrideEndTime by remember { mutableStateOf(sharedPreferences.getLong("dnd_override_end_time", 0)) }
     val now = System.currentTimeMillis()
     val isOverridden = overrideEndTime > now
@@ -803,11 +917,22 @@ fun DndWidget(sharedPreferences: android.content.SharedPreferences) {
         }
     }
 
+    val cardBorder = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .interactiveTilt(appTheme)
+            .glowOrShadow(appTheme, isFeatured = isOverridden)
+            .paperTexture(appTheme),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+        border = cardBorder
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -820,7 +945,7 @@ fun DndWidget(sharedPreferences: android.content.SharedPreferences) {
             ) {
                 Box(
                     modifier = Modifier
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), MaterialTheme.shapes.medium)
                         .padding(8.dp)
                 ) {
                     Icon(
@@ -847,7 +972,7 @@ fun DndWidget(sharedPreferences: android.content.SharedPreferences) {
                     sharedPreferences.edit().putLong("dnd_override_end_time", newTime).apply()
                     overrideEndTime = newTime
                 },
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -865,13 +990,25 @@ fun TransitAdvisorWidget(
     activeSlotName: String,
     activeClassroom: String,
     nextSlotName: String,
-    nextClassroom: String
+    nextClassroom: String,
+    appTheme: GlowTheme
 ) {
+    val cardBorder = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, Color(0xFFFBBF24))
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, Color(0x33FBBF24))
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, Color(0x55FBBF24))
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, Color(0x33FBBF24))
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .interactiveTilt(appTheme)
+            .glowOrShadow(appTheme, isFeatured = true, glowColor = Color(0xFFFBBF24))
+            .paperTexture(appTheme),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = Color(0x22FBBF24)),
-        border = BorderStroke(1.dp, Color(0x33FBBF24))
+        border = cardBorder
     ) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -901,17 +1038,29 @@ fun TransitAdvisorWidget(
 fun SentimentWallWidget(
     courseName: String,
     courseId: Int,
-    sharedPreferences: android.content.SharedPreferences
+    sharedPreferences: android.content.SharedPreferences,
+    appTheme: GlowTheme
 ) {
     val key = "sentiment_${courseId}_${SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())}"
     var selectedEmoji by remember { mutableStateOf(sharedPreferences.getString(key, null)) }
 
+    val cardBorder = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    }
+
     if (selectedEmoji == null) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .interactiveTilt(appTheme)
+                .glowOrShadow(appTheme, isFeatured = false)
+                .paperTexture(appTheme),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+            border = cardBorder
         ) {
             Column(
                 modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -962,10 +1111,14 @@ fun SentimentWallWidget(
         }
     } else {
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .interactiveTilt(appTheme)
+                .glowOrShadow(appTheme, isFeatured = false)
+                .paperTexture(appTheme),
+            shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            border = BorderStroke(if (appTheme == GlowTheme.VINTAGE_LIBRARY) 0.5.dp else 1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
         ) {
             Row(
                 modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -995,3 +1148,268 @@ private fun timeStringToMinutes(timeStr: String): Int {
     val minute = parts[1].toIntOrNull() ?: 0
     return hour * 60 + minute
 }
+
+@Composable
+fun PhysicsToyBox(
+    todaySlots: List<Triple<CourseWithSchedules, ScheduleSlot, PeriodTime?>>,
+    appTheme: GlowTheme
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val cardBorder = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .interactiveTilt(appTheme)
+            .glowOrShadow(appTheme, isFeatured = false)
+            .paperTexture(appTheme)
+            .bounceClickable { expanded = !expanded },
+        shape = MaterialTheme.shapes.large,
+        border = cardBorder,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("🎮", fontSize = 24.sp)
+                    Column {
+                        Text("课业压力解压沙盒", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (expanded) "轻点收起 · 随意拨弄或抛投课程泡泡！" else "展开玩具箱 · 把今天的课丢在脑后！",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            if (expanded) {
+                Spacer(modifier = Modifier.height(16.dp))
+                PhysicsCanvas(todaySlots = todaySlots)
+            }
+        }
+    }
+}
+
+@Composable
+fun PhysicsCanvas(
+    todaySlots: List<Triple<CourseWithSchedules, ScheduleSlot, PeriodTime?>>
+) {
+    val bubbles = remember(todaySlots) {
+        val list = mutableListOf<PhysicsBubble>()
+        if (todaySlots.isEmpty()) {
+            val words = listOf("无课！", "睡大觉", "打游戏", "去散步", "好耶！")
+            val colors = listOf(Color(0xFFE8F5E9), Color(0xFFE8EAF6), Color(0xFFFCE4EC), Color(0xFFFFF3E0), Color(0xFFE0F7FA))
+            words.forEachIndexed { i, w ->
+                list.add(
+                    PhysicsBubble(
+                        name = w,
+                        color = colors[i % colors.size],
+                        x = 100f + i * 120f,
+                        y = 100f + (i % 2) * 50f,
+                        vx = (Math.random() * 4 - 2).toFloat(),
+                        vy = (Math.random() * 4 - 2).toFloat()
+                    )
+                )
+            }
+        } else {
+            todaySlots.forEachIndexed { i, slot ->
+                val course = slot.first.course
+                val parsedColor = try {
+                    Color(android.graphics.Color.parseColor(course.colorHex))
+                } catch (e: Exception) {
+                    Color(0xFF8FA382)
+                }
+                list.add(
+                    PhysicsBubble(
+                        name = course.name.take(5),
+                        color = parsedColor,
+                        x = 100f + i * 120f,
+                        y = 100f + (i % 2) * 50f,
+                        vx = (Math.random() * 4 - 2).toFloat(),
+                        vy = (Math.random() * 4 - 2).toFloat()
+                    )
+                )
+            }
+        }
+        list
+    }
+
+    var tick by remember { mutableStateOf(0) }
+    var draggedBubbleIndex by remember { mutableStateOf<Int?>(null) }
+    var dragPos by remember { mutableStateOf(Offset.Zero) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            withFrameMillis {
+                tick++
+            }
+        }
+    }
+
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val textPaint = remember {
+        android.graphics.Paint().apply {
+            textSize = with(density) { 10.sp.toPx() }
+            textAlign = android.graphics.Paint.Align.CENTER
+            isAntiAlias = true
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(bubbles) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val idx = bubbles.indexOfFirst {
+                                val dx = it.x - offset.x
+                                val dy = it.y - offset.y
+                                dx * dx + dy * dy < it.radius * it.radius * 2.25f
+                            }
+                            if (idx != -1) {
+                                draggedBubbleIndex = idx
+                                dragPos = offset
+                            }
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            dragPos += dragAmount
+                        },
+                        onDragEnd = {
+                            draggedBubbleIndex = null
+                        },
+                        onDragCancel = {
+                            draggedBubbleIndex = null
+                        }
+                    )
+                }
+        ) {
+            val width = size.width
+            val height = size.height
+            val gravity = 0.4f
+            val bounce = 0.75f
+
+            if (width > 0 && height > 0) {
+                bubbles.forEachIndexed { idx, b ->
+                    if (idx == draggedBubbleIndex) {
+                        b.vx = (dragPos.x - b.x) * 0.3f
+                        b.vy = (dragPos.y - b.y) * 0.3f
+                        b.x = dragPos.x
+                        b.y = dragPos.y
+                    } else {
+                        b.vy += gravity
+                        b.vx *= 0.99f
+                        b.vy *= 0.99f
+                        b.x += b.vx
+                        b.y += b.vy
+                    }
+
+                    val r = b.radius
+                    if (b.x < r) {
+                        b.x = r
+                        b.vx = -b.vx * bounce
+                    } else if (b.x > width - r) {
+                        b.x = width - r
+                        b.vx = -b.vx * bounce
+                    }
+
+                    if (b.y < r) {
+                        b.y = r
+                        b.vy = -b.vy * bounce
+                    } else if (b.y > height - r) {
+                        b.y = height - r
+                        b.vy = -b.vy * bounce
+                    }
+                }
+
+                for (i in bubbles.indices) {
+                    for (j in i + 1 until bubbles.size) {
+                        val b1 = bubbles[i]
+                        val b2 = bubbles[j]
+                        val dx = b2.x - b1.x
+                        val dy = b2.y - b1.y
+                        val dist = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+                        val minDist = b1.radius + b2.radius
+                        if (dist < minDist && dist > 0f) {
+                            val overlap = minDist - dist
+                            val nx = dx / dist
+                            val ny = dy / dist
+                            b1.x -= nx * overlap * 0.5f
+                            b1.y -= ny * overlap * 0.5f
+                            b2.x += nx * overlap * 0.5f
+                            b2.y += ny * overlap * 0.5f
+
+                            val kx = b1.vx - b2.vx
+                            val ky = b1.vy - b2.vy
+                            val p = 2 * (nx * kx + ny * ky) / 2f
+                            b1.vx -= p * nx * bounce
+                            b1.vy -= p * ny * bounce
+                            b2.vx += p * nx * bounce
+                            b2.vy += p * ny * bounce
+                        }
+                    }
+                }
+
+                bubbles.forEach { b ->
+                    drawCircle(
+                        color = b.color,
+                        radius = b.radius,
+                        center = Offset(b.x, b.y)
+                    )
+                    drawCircle(
+                        color = Color.Black.copy(alpha = 0.2f),
+                        radius = b.radius,
+                        center = Offset(b.x, b.y),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+
+                    drawIntoCanvas { canvas ->
+                        val nativeCanvas = canvas.nativeCanvas
+                        val textColor = if (b.color.red * 0.299f + b.color.green * 0.587f + b.color.blue * 0.114f > 0.6f) {
+                            android.graphics.Color.BLACK
+                        } else {
+                            android.graphics.Color.WHITE
+                        }
+                        textPaint.color = textColor
+                        nativeCanvas.drawText(
+                            b.name,
+                            b.x,
+                            b.y + (textPaint.textSize / 3f),
+                            textPaint
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+data class PhysicsBubble(
+    val name: String,
+    val color: Color,
+    var x: Float,
+    var y: Float,
+    var vx: Float,
+    var vy: Float,
+    val radius: Float = 60f
+)

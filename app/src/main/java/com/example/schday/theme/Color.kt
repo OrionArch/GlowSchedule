@@ -2,7 +2,7 @@ package com.example.schday.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light Theme Palette
+// Theme 1: Academic Serenity (Morandi Light/Dark)
 val LightPrimary = Color(0xFF54624E)
 val LightSecondary = Color(0xFF7B5455)
 val LightTertiary = Color(0xFF4F6071)
@@ -20,7 +20,6 @@ val LightSurfaceVariant = Color(0xFFE4E2DD)
 val LightOnSurfaceVariant = Color(0xFF444841)
 val LightOutlineVariant = Color(0xFFC5C8BE)
 
-// Dark Theme Palette
 val DarkPrimary = Color(0xFFBCCBB2)
 val DarkSecondary = Color(0xFFECBBBA)
 val DarkTertiary = Color(0xFFB6C9DB)
@@ -37,6 +36,64 @@ val DarkOnTertiaryContainer = Color(0xFFD2E5F8)
 val DarkSurfaceVariant = Color(0xFF444841)
 val DarkOnSurfaceVariant = Color(0xFFC5C8BE)
 val DarkOutlineVariant = Color(0xFF444841)
+
+// Theme 2: Deep Charcoal & Pastel (Retro-Modern Dark Card)
+val CharcoalPrimary = Color(0xFFBCCBB2) // Sage Green
+val CharcoalSecondary = Color(0xFFECBBBA) // Muted Rose
+val CharcoalTertiary = Color(0xFFB6C9DB) // Slate Blue
+val CharcoalBackground = Color(0xFF121312) // Deep Charcoal
+val CharcoalSurface = Color(0xFF181918) // Slightly lighter charcoal
+val CharcoalOnSurface = Color(0xFFF5F3EE) // Cream white text
+val CharcoalOnPrimary = Color(0xFF283422)
+val CharcoalPrimaryContainer = Color(0xFF242C21)
+val CharcoalOnPrimaryContainer = Color(0xFFD8E7CD)
+val CharcoalSecondaryContainer = Color(0xFF3A2425)
+val CharcoalOnSecondaryContainer = Color(0xFFFFDAD9)
+val CharcoalTertiaryContainer = Color(0xFF212A33)
+val CharcoalOnTertiaryContainer = Color(0xFFD2E5F8)
+val CharcoalSurfaceVariant = Color(0xFF232523)
+val CharcoalOnSurfaceVariant = Color(0xFFC5C8BE)
+val CharcoalOutline = Color(0xFF353734) // Defined border
+val CharcoalOutlineVariant = Color(0xFF2A2C2A)
+
+// Theme 3: AMOLED Pop (Pure Black & Neon Outlines)
+val NeonPrimary = Color(0xFF00FF66) // Neon Green
+val NeonSecondary = Color(0xFFFF007F) // Neon Pink
+val NeonTertiary = Color(0xFF00FFFF) // Neon Cyan
+val NeonBackground = Color(0xFF000000) // Pure Black
+val NeonSurface = Color(0xFF0D0D0D)
+val NeonOnSurface = Color(0xFFFFFFFF)
+val NeonOnPrimary = Color(0xFF000000)
+val NeonPrimaryContainer = Color(0xFF003314)
+val NeonOnPrimaryContainer = Color(0xFF66FF99)
+val NeonSecondaryContainer = Color(0xFF3D001A)
+val NeonOnSecondaryContainer = Color(0xFFFFB3D1)
+val NeonTertiaryContainer = Color(0xFF003333)
+val NeonOnTertiaryContainer = Color(0xFFB3FFFF)
+val NeonSurfaceVariant = Color(0xFF1A1A1A)
+val NeonOnSurfaceVariant = Color(0xFFE0E0E0)
+val NeonOutline = Color(0xFF00FF66) // Neon Green outline
+val NeonOutlineVariant = Color(0xFFFF007F) // Neon Pink outline variant
+
+// Theme 4: Vintage Library (Deep Brown, Olive & Cream)
+val VintagePrimary = Color(0xFF8FA382) // Olive Green
+val VintageSecondary = Color(0xFFD4A373) // Warm Leather/Parchment
+val VintageTertiary = Color(0xFFA2A2D0) // Vintage Lavender
+val VintageBackground = Color(0xFF201A16) // Deep Walnut Brown
+val VintageSurface = Color(0xFF2B231D) // Parchment Card background
+val VintageOnSurface = Color(0xFFF4F1DE) // Soft Cream text
+val VintageOnPrimary = Color(0xFF23351C)
+val VintagePrimaryContainer = Color(0xFF3C4D35)
+val VintageOnPrimaryContainer = Color(0xFFE2EFE0)
+val VintageSecondaryContainer = Color(0xFF5D3F22)
+val VintageOnSecondaryContainer = Color(0xFFFFDDBB)
+val VintageTertiaryContainer = Color(0xFF3B3A5A)
+val VintageOnTertiaryContainer = Color(0xFFE2E2F5)
+val VintageSurfaceVariant = Color(0xFF3C3128)
+val VintageOnSurfaceVariant = Color(0xFFD5C7B7)
+val VintageOutline = Color(0xFF705E51)
+val VintageOutlineVariant = Color(0xFF53453A)
+
 
 // Morandi Course Pastel Colors (Background & Matching Text)
 val MorandiMintBg = Color(0xFFD1E8E2)
