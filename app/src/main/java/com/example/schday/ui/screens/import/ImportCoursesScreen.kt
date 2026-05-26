@@ -25,7 +25,19 @@ import com.example.schday.data.entity.Course
 import com.example.schday.data.entity.ScheduleSlot
 import com.example.schday.parser.ExcelParser
 import com.example.schday.theme.MorandiColors
+import com.example.schday.ui.components.GlowDialog
+import com.example.schday.utils.DateUtils
+import com.example.schday.utils.ScheduleClashDetector
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+data class ImportConflict(
+    val newCourse: Course,
+    val newSlots: List<ScheduleSlot>,
+    val existingCourse: Course,
+    val existingSlots: List<ScheduleSlot>,
+    val clashingSlots: List<Pair<ScheduleSlot, ScheduleSlot>>
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +50,64 @@ fun ImportCoursesScreen(
     val currentSemester by repository.getCurrentSemester().collectAsStateWithLifecycle(initialValue = null)
 
     var selectedTab by remember { mutableStateOf(0) } // 0 = AI Screenshot, 1 = CSV
+    val pendingConflicts = remember { mutableStateListOf<ImportConflict>() }
+
+    // Helper to check for schedule clashes and process import
+    val processImport: (List<Pair<Course, List<ScheduleSlot>>>) -> Unit = { parsedList ->
+        coroutineScope.launch {
+            try {
+                if (currentSemester == null) return@launch
+                val existingCourses = repository.getCoursesBySemester(currentSemester!!.id).first()
+                
+                val conflicts = mutableListOf<ImportConflict>()
+                val safeImports = mutableListOf<Pair<Course, List<ScheduleSlot>>>()
+
+                for ((newCourse, newSlots) in parsedList) {
+                    val clashes = mutableListOf<Pair<ScheduleSlot, ScheduleSlot>>()
+                    var conflictingCourse: Course? = null
+                    var conflictingSlots = listOf<ScheduleSlot>()
+                    
+                    for (existing in existingCourses) {
+                        val slotClashes = ScheduleClashDetector.findClashes(newSlots, existing.slots)
+                        if (slotClashes.isNotEmpty()) {
+                            clashes.addAll(slotClashes)
+                            conflictingCourse = existing.course
+                            conflictingSlots = existing.slots
+                            break // Found a clash, handle it
+                        }
+                    }
+                    
+                    if (clashes.isNotEmpty() && conflictingCourse != null) {
+                        conflicts.add(
+                            ImportConflict(
+                                newCourse = newCourse,
+                                newSlots = newSlots,
+                                existingCourse = conflictingCourse,
+                                existingSlots = conflictingSlots,
+                                clashingSlots = clashes
+                            )
+                        )
+                    } else {
+                        safeImports.add(Pair(newCourse, newSlots))
+                    }
+                }
+                
+                // Save safe ones immediately
+                safeImports.forEach { (course, slots) ->
+                    repository.saveCourseWithSlots(course, slots)
+                }
+                
+                if (conflicts.isNotEmpty()) {
+                    pendingConflicts.addAll(conflicts)
+                } else {
+                    Toast.makeText(context, "成功导入 ${parsedList.size} 门课程！", Toast.LENGTH_SHORT).show()
+                    onBack()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "解析或检查冲突失败: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     // Excel/CSV import contract launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -48,11 +118,7 @@ fun ImportCoursesScreen(
                 try {
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
                         val parsed = ExcelParser.parseCsv(inputStream, currentSemester!!.id)
-                        parsed.forEach { (course, slots) ->
-                            repository.saveCourseWithSlots(course, slots)
-                        }
-                        Toast.makeText(context, "成功导入 ${parsed.size} 门课程！", Toast.LENGTH_SHORT).show()
-                        onBack()
+                        processImport(parsed)
                     }
                 } catch (e: Exception) {
                     Toast.makeText(context, "导入失败: ${e.message}", Toast.LENGTH_LONG).show()
@@ -62,6 +128,193 @@ fun ImportCoursesScreen(
     }
 
     var jsonText by remember { mutableStateOf("") }
+
+    // Dialog showing clashes
+    if (pendingConflicts.isNotEmpty()) {
+        val currentConflict = pendingConflicts.first()
+        GlowDialog(
+            onDismissRequest = {
+                pendingConflicts.clear()
+                onBack()
+            },
+            title = {
+                Text(
+                    text = "课程日程冲突",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            // Keep Both
+                            repository.saveCourseWithSlots(currentConflict.newCourse, currentConflict.newSlots)
+                            pendingConflicts.removeAt(0)
+                            if (pendingConflicts.isEmpty()) {
+                                Toast.makeText(context, "导入完成！", Toast.LENGTH_SHORT).show()
+                                onBack()
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Text("保留两者", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            // Overwrite Existing (Delete conflicting course and insert new one)
+                            repository.deleteCourse(currentConflict.existingCourse)
+                            repository.saveCourseWithSlots(currentConflict.newCourse, currentConflict.newSlots)
+                            pendingConflicts.removeAt(0)
+                            if (pendingConflicts.isEmpty()) {
+                                Toast.makeText(context, "导入完成！", Toast.LENGTH_SHORT).show()
+                                onBack()
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                ) {
+                    Text("覆盖已有", fontWeight = FontWeight.Bold)
+                }
+            },
+            neutralButton = {
+                TextButton(
+                    onClick = {
+                        pendingConflicts.removeAt(0)
+                        if (pendingConflicts.isEmpty()) {
+                            Toast.makeText(context, "导入完成！", Toast.LENGTH_SHORT).show()
+                            onBack()
+                        }
+                    }
+                ) {
+                    Text("跳过此门")
+                }
+            }
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "您正在导入的课程与已有课程存在时间重叠：",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Clash slot info
+                val clash = currentConflict.clashingSlots.firstOrNull()
+                if (clash != null) {
+                    val (newSlot, existingSlot) = clash
+                    val dayName = DateUtils.getDayName(newSlot.dayOfWeek)
+                    val overlapWeeks = DateUtils.parseActiveWeeks(newSlot.activeWeeks)
+                        .intersect(DateUtils.parseActiveWeeks(existingSlot.activeWeeks).toSet())
+                        .joinToString(", ")
+                    
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "冲突时间：$dayName 第 ${newSlot.startPeriod}-${newSlot.endPeriod} 节",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = "重叠周数：第 $overlapWeeks 周",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // Existing Course Card (Academic Serenity Slate Blue / Muted style)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.15f)
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = "已有课程: ${currentConflict.existingCourse.name}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (currentConflict.existingCourse.teacher.isNotBlank()) {
+                            Text(
+                                text = "教师: ${currentConflict.existingCourse.teacher}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        val existingSlot = currentConflict.existingSlots.firstOrNull()
+                        if (existingSlot != null) {
+                            Text(
+                                text = "教室: ${existingSlot.classroom}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // New Course Card (Academic Serenity Dusty Pink / Warning style)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = "待导入课程: ${currentConflict.newCourse.name}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (currentConflict.newCourse.teacher.isNotBlank()) {
+                            Text(
+                                text = "教师: ${currentConflict.newCourse.teacher}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        val newSlot = currentConflict.newSlots.firstOrNull()
+                        if (newSlot != null) {
+                            Text(
+                                text = "教室: ${newSlot.classroom}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -109,6 +362,7 @@ fun ImportCoursesScreen(
                                         sanitizedJson = sanitizedJson.removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
                                     }
                                     val array = org.json.JSONArray(sanitizedJson)
+                                    val parsedList = mutableListOf<Pair<Course, List<ScheduleSlot>>>()
                                     var colorIdx = 0
                                     for (i in 0 until array.length()) {
                                         val obj = array.getJSONObject(i)
@@ -128,10 +382,9 @@ fun ImportCoursesScreen(
                                             classroom = obj.optString("classroom", ""),
                                             activeWeeks = obj.optString("weeks", "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20")
                                         )
-                                        repository.saveCourseWithSlots(course, listOf(slot))
+                                        parsedList.add(Pair(course, listOf(slot)))
                                     }
-                                    Toast.makeText(context, "AI 导入：成功同步 ${array.length()} 门课程！", Toast.LENGTH_SHORT).show()
-                                    onBack()
+                                    processImport(parsedList)
                                 } catch (e: Exception) {
                                     Toast.makeText(context, "解析 AI 数据失败: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
