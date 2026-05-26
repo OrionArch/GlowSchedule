@@ -54,19 +54,6 @@ object DateUtils {
         return "$startTime-$endTime"
     }
 
-    fun getDayName(dayOfWeek: Int): String {
-        return when (dayOfWeek) {
-            1 -> "周一"
-            2 -> "周二"
-            3 -> "周三"
-            4 -> "周四"
-            5 -> "周五"
-            6 -> "周六"
-            7 -> "周日"
-            else -> ""
-        }
-    }
-
     fun getDayName(context: Context, dayOfWeek: Int): String {
         val names = context.resources.getStringArray(com.example.schday.R.array.day_of_week_names)
         val index = dayOfWeek - 1

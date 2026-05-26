@@ -119,26 +119,6 @@ class DateUtilsTest {
         assertEquals("-", DateUtils.formatPeriodTime("", ""))
     }
 
-    // --- getDayName ---
-
-    @Test
-    fun getDayName_allDays() {
-        assertEquals("周一", DateUtils.getDayName(1))
-        assertEquals("周二", DateUtils.getDayName(2))
-        assertEquals("周三", DateUtils.getDayName(3))
-        assertEquals("周四", DateUtils.getDayName(4))
-        assertEquals("周五", DateUtils.getDayName(5))
-        assertEquals("周六", DateUtils.getDayName(6))
-        assertEquals("周日", DateUtils.getDayName(7))
-    }
-
-    @Test
-    fun getDayName_invalidDay_returnsEmptyString() {
-        assertEquals("", DateUtils.getDayName(0))
-        assertEquals("", DateUtils.getDayName(8))
-        assertEquals("", DateUtils.getDayName(-1))
-    }
-
     // --- getCurrentWeek boundary cases ---
 
     @Test

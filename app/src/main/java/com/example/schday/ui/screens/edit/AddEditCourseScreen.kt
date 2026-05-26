@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -303,7 +304,7 @@ fun AddEditCourseScreen(
                                     ),
                                     shape = MaterialTheme.shapes.small
                                 ) {
-                                    Text(DateUtils.getDayName(day), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text(DateUtils.getDayName(LocalContext.current, day), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
