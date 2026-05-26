@@ -35,6 +35,8 @@ import com.example.schday.utils.DateUtils
 import kotlinx.coroutines.launch
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.example.schday.R
 
 data class DisplaySlot(
     val course: com.example.schday.data.entity.Course,
@@ -57,7 +59,7 @@ fun TimetableTab(
 ) {
     if (semester == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("请先去设置页面创建一个学期！", style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.no_semester_hint), style = MaterialTheme.typography.bodyLarge)
         }
         return
     }
@@ -99,10 +101,16 @@ fun TimetableTab(
     var hideWeekends by remember { mutableStateOf(sharedPreferences.getBoolean("hide_weekends", false)) }
     var weekDropdownExpanded by remember { mutableStateOf(false) }
 
+    val weekLabelCurrent = stringResource(R.string.timetable_week_label_current, activeWeek)
+    val weekLabelPlain = stringResource(R.string.timetable_week_label, activeWeek)
+    val backToCurrentStr = stringResource(R.string.timetable_back_to_current)
+    val showCurrentOnlyStr = stringResource(R.string.timetable_show_current_only)
+    val hideWeekendsStr = stringResource(R.string.timetable_hide_weekends)
+
     // BottomSheet states for course details and conflict resolution
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedCourseGroup by remember { mutableStateOf<List<DisplaySlot>>(emptyList()) }
-    var activeDetailsIndex by remember { mutableStateOf(0) }
+    var activeDetailsIndex by remember { mutableIntStateOf(0) }
     val topCourseIds = remember { mutableStateMapOf<String, Int>() }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -122,11 +130,11 @@ fun TimetableTab(
                     InputChip(
                         selected = true,
                         onClick = { weekDropdownExpanded = true },
-                        label = { 
+                        label = {
                             Text(
-                                text = "第 $activeWeek 周" + if (activeWeek == currentWeek) " (本周)" else "",
+                                text = if (activeWeek == currentWeek) weekLabelCurrent else weekLabelPlain,
                                 fontWeight = FontWeight.Bold
-                            ) 
+                            )
                         },
                         trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) }
                     )
@@ -136,12 +144,14 @@ fun TimetableTab(
                         onDismissRequest = { weekDropdownExpanded = false }
                     ) {
                         (1..semester.totalWeeks).forEach { week ->
+                            val dropdownWeekLabelCurrent = stringResource(R.string.timetable_week_label_current, week)
+                            val dropdownWeekLabelPlain = stringResource(R.string.timetable_week_label, week)
                             DropdownMenuItem(
-                                text = { 
+                                text = {
                                     Text(
-                                        text = "第 $week 周" + if (week == currentWeek) " (本周)" else "",
+                                        text = if (week == currentWeek) dropdownWeekLabelCurrent else dropdownWeekLabelPlain,
                                         fontWeight = if (week == activeWeek) FontWeight.Bold else FontWeight.Normal
-                                    ) 
+                                    )
                                 },
                                 onClick = {
                                     coroutineScope.launch {
@@ -163,7 +173,7 @@ fun TimetableTab(
                         },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Text("回到本周", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Text(backToCurrentStr, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -177,7 +187,7 @@ fun TimetableTab(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text("只显本周", style = MaterialTheme.typography.bodySmall)
+                    Text(showCurrentOnlyStr, style = MaterialTheme.typography.bodySmall)
                     Switch(
                         checked = showOnlyCurrentWeek,
                         onCheckedChange = { showOnlyCurrentWeek = it },
@@ -190,7 +200,7 @@ fun TimetableTab(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text("隐藏周末", style = MaterialTheme.typography.bodySmall)
+                    Text(hideWeekendsStr, style = MaterialTheme.typography.bodySmall)
                     Switch(
                         checked = hideWeekends,
                         onCheckedChange = { checked ->
@@ -267,13 +277,13 @@ fun TimetableTab(
                     // Header / Course Selector if there's conflict
                     if (selectedCourseGroup.size > 1) {
                         Text(
-                            text = "⚠️ 该时段有 ${selectedCourseGroup.size} 门冲突课程",
+                            text = stringResource(R.string.timetable_conflict_count, selectedCourseGroup.size),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        ScrollableTabRow(
+                        SecondaryScrollableTabRow(
                             selectedTabIndex = activeDetailsIndex,
                             edgePadding = 0.dp,
                             modifier = Modifier.fillMaxWidth().height(40.dp)
@@ -321,24 +331,28 @@ fun TimetableTab(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        DetailItem(icon = Icons.Default.Person, label = "任课教师", value = course.teacher.ifEmpty { "未指定" })
+                        val teacherLabel = stringResource(R.string.timetable_teacher)
+                        val notSpecified = stringResource(R.string.timetable_not_specified)
+                        val classroomLabel = stringResource(R.string.timetable_classroom)
+                        val timeLabel = stringResource(R.string.timetable_time)
+                        val weeksLabel = stringResource(R.string.timetable_weeks)
+
+                        DetailItem(icon = Icons.Default.Person, label = teacherLabel, value = course.teacher.ifEmpty { notSpecified })
                         DetailItem(
-                            icon = Icons.Default.Place, 
-                            label = "上课教室", 
-                            value = slot.classroom.ifEmpty { "未指定" }
+                            icon = Icons.Default.Place,
+                            label = classroomLabel,
+                            value = slot.classroom.ifEmpty { notSpecified }
                         )
-                        val dayStr = when(slot.dayOfWeek) {
-                            1 -> "周一"; 2 -> "周二"; 3 -> "周三"; 4 -> "周四"; 5 -> "周五"; 6 -> "周六"; else -> "周日"
-                        }
+                        val dayStr = DateUtils.getDayName(context, slot.dayOfWeek)
                         val timePeriod = periods.find { it.periodNumber == slot.startPeriod }
                         val endPeriod = periods.find { it.periodNumber == slot.endPeriod }
                         val timeStr = if (timePeriod != null && endPeriod != null) {
-                            "$dayStr 第 ${slot.startPeriod}-${slot.endPeriod} 节 (${timePeriod.startTime} - ${endPeriod.endTime})"
+                            stringResource(R.string.timetable_period_format_with_time, dayStr, slot.startPeriod, slot.endPeriod, timePeriod.startTime, endPeriod.endTime)
                         } else {
-                            "$dayStr 第 ${slot.startPeriod}-${slot.endPeriod} 节"
+                            stringResource(R.string.timetable_period_format, dayStr, slot.startPeriod, slot.endPeriod)
                         }
-                        DetailItem(icon = Icons.Default.DateRange, label = "上课时间", value = timeStr)
-                        DetailItem(icon = Icons.Default.Info, label = "上课周数", value = "第 ${slot.activeWeeks} 周")
+                        DetailItem(icon = Icons.Default.DateRange, label = timeLabel, value = timeStr)
+                        DetailItem(icon = Icons.Default.Info, label = weeksLabel, value = stringResource(R.string.timetable_weeks_value, slot.activeWeeks))
                     }
 
                     // Associated Homework
@@ -346,7 +360,7 @@ fun TimetableTab(
                     if (homework.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "📋 关联待办",
+                            text = stringResource(R.string.timetable_related_homework),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -377,7 +391,7 @@ fun TimetableTab(
                                             color = if (hw.isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = if (hw.isCompleted) "已完成" else "待完成",
+                                            text = if (hw.isCompleted) stringResource(R.string.timetable_homework_done) else stringResource(R.string.timetable_homework_pending),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = if (hw.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                                         )
@@ -404,7 +418,7 @@ fun TimetableTab(
                                 modifier = Modifier.weight(1.2f),
                                 shape = MaterialTheme.shapes.medium
                             ) {
-                                Text("置顶显示")
+                                Text(stringResource(R.string.timetable_pin_to_top))
                             }
                         }
 
@@ -416,7 +430,7 @@ fun TimetableTab(
                             modifier = Modifier.weight(1f),
                             shape = MaterialTheme.shapes.medium
                         ) {
-                            Text("编辑课程")
+                            Text(stringResource(R.string.timetable_edit_course))
                         }
                     }
                 }
@@ -446,8 +460,7 @@ fun DetailItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: Str
 }
 
 // Extends Modifier to scale for smaller elements (like the switch)
-fun Modifier.scale(scale: Float): Modifier = this.then(
-    layout { measurable, constraints ->
+fun Modifier.scale(scale: Float): Modifier = this.layout { measurable, constraints ->
         val placeable = measurable.measure(constraints)
         layout((placeable.width * scale).toInt(), (placeable.height * scale).toInt()) {
             placeable.placeRelativeWithLayer(0, 0) {
@@ -456,14 +469,15 @@ fun Modifier.scale(scale: Float): Modifier = this.then(
             }
         }
     }
-)
 
 @Composable
 fun DaysHeaderRow(currentDayOfWeek: Int, isCurrentWeek: Boolean, hideWeekends: Boolean) {
+    val context = LocalContext.current
+    val allDays = (1..7).map { DateUtils.getDayName(context, it) }
     val days = if (hideWeekends) {
-        listOf("周一", "周二", "周三", "周四", "周五")
+        allDays.take(5)
     } else {
-        listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+        allDays
     }
 
     Row(
@@ -729,7 +743,7 @@ fun TimetableGrid(
                                         .padding(horizontal = 3.dp, vertical = 1.dp)
                                 ) {
                                     Text(
-                                        text = "非本周",
+                                        text = stringResource(R.string.timetable_not_this_week),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.Bold,

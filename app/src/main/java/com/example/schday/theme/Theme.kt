@@ -17,7 +17,14 @@ enum class GlowTheme(val displayName: String) {
     ACADEMIC_SERENITY("极简莫兰迪"),
     DEEP_CHARCOAL("摩登暗黑粉彩"),
     AMOLED_POP("纯黑波普"),
-    VINTAGE_LIBRARY("复古书卷")
+    VINTAGE_LIBRARY("复古书卷");
+
+    fun getDisplayName(context: android.content.Context): String = when (this) {
+        ACADEMIC_SERENITY -> context.getString(com.example.schday.R.string.theme_academic_serenity)
+        DEEP_CHARCOAL -> context.getString(com.example.schday.R.string.theme_deep_charcoal)
+        AMOLED_POP -> context.getString(com.example.schday.R.string.theme_amoled_pop)
+        VINTAGE_LIBRARY -> context.getString(com.example.schday.R.string.theme_vintage_library)
+    }
 }
 
 private val SerenityDarkColorScheme = darkColorScheme(

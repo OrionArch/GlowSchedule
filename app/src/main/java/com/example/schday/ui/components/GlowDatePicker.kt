@@ -22,12 +22,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.schday.R
 import com.example.schday.theme.GlowTheme
 import java.text.SimpleDateFormat
 import java.util.*
@@ -39,15 +42,24 @@ fun GlowDatePickerDialog(
     onDateSelected: (Long) -> Unit,
     appTheme: GlowTheme
 ) {
+    val context = LocalContext.current
     var selectedDate by remember { mutableStateOf(Date(initialDateMillis)) }
     var yearMonthCal by remember {
         mutableStateOf(Calendar.getInstance(Locale.getDefault()).apply { time = selectedDate })
     }
 
+    // Resolve strings
+    val prevMonthDesc = stringResource(R.string.datepicker_prev_month)
+    val nextMonthDesc = stringResource(R.string.datepicker_next_month)
+    val confirmStr = stringResource(R.string.confirm)
+    val cancelStr = stringResource(R.string.cancel)
+    val monthFormat = stringResource(R.string.datepicker_month_format)
+    val dayHeaders = context.resources.getStringArray(R.array.calendar_day_headers).toList()
+
     Dialog(onDismissRequest = onDismissRequest) {
         val primaryColor = MaterialTheme.colorScheme.primary
         val outlineColor = MaterialTheme.colorScheme.outline
-        
+
         // Setup Card shape and border based on theme
         val cardShape = when (appTheme) {
             GlowTheme.ACADEMIC_SERENITY -> MaterialTheme.shapes.large // 24dp
@@ -101,18 +113,13 @@ fun GlowDatePickerDialog(
                         }) {
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowLeft,
-                                contentDescription = "上个月",
+                                contentDescription = prevMonthDesc,
                                 tint = primaryColor
                             )
                         }
 
-                        val monthFormat = when (appTheme) {
-                            GlowTheme.AMOLED_POP -> "yyyy / MM"
-                            GlowTheme.VINTAGE_LIBRARY -> "yyyy年 MM月"
-                            else -> "yyyy年 MM月"
-                        }
                         val monthStr = SimpleDateFormat(monthFormat, Locale.getDefault()).format(yearMonthCal.time)
-                        
+
                         Text(
                             text = if (appTheme == GlowTheme.AMOLED_POP) monthStr.uppercase() else monthStr,
                             style = MaterialTheme.typography.titleMedium.copy(
@@ -128,7 +135,7 @@ fun GlowDatePickerDialog(
                         }) {
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowRight,
-                                contentDescription = "下个月",
+                                contentDescription = nextMonthDesc,
                                 tint = primaryColor
                             )
                         }
@@ -174,8 +181,7 @@ fun GlowDatePickerDialog(
 
                 // Weekday names
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    val daysOfWeek = listOf("日", "一", "二", "三", "四", "五", "六")
-                    daysOfWeek.forEach { dayName ->
+                    dayHeaders.forEach { dayName ->
                         Text(
                             text = dayName,
                             modifier = Modifier.weight(1f),
@@ -276,7 +282,7 @@ fun GlowDatePickerDialog(
                                                             val len = 6.dp.toPx()
                                                             val w = 1.5.dp.toPx()
                                                             val secondaryNeon = Color(0xFFFF007F) // Neon Pink
-                                                            
+
                                                             // Top Left
                                                             drawLine(color = secondaryNeon, start = Offset(0f, 0f), end = Offset(len, 0f), strokeWidth = w)
                                                             drawLine(color = secondaryNeon, start = Offset(0f, 0f), end = Offset(0f, len), strokeWidth = w)
@@ -306,7 +312,7 @@ fun GlowDatePickerDialog(
                                                                 radius = size.minDimension / 2f - 5.dp.toPx(),
                                                                 style = Stroke(width = 0.8.dp.toPx())
                                                             )
-                                                            
+
                                                             // splatters
                                                             val center = size.minDimension / 2f
                                                             val splatters = listOf(
@@ -360,7 +366,7 @@ fun GlowDatePickerDialog(
                                                 }
                                                 else -> MaterialTheme.colorScheme.onSurface
                                             }
-                                            
+
                                             Text(
                                                 text = dayNum.toString(),
                                                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -387,7 +393,7 @@ fun GlowDatePickerDialog(
                         onClick = onDismissRequest
                     ) {
                         Text(
-                            text = "取消",
+                            text = cancelStr,
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = if (appTheme == GlowTheme.AMOLED_POP) FontFamily.Monospace else null
@@ -395,9 +401,9 @@ fun GlowDatePickerDialog(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.width(12.dp))
-                    
+
                     // Confirm button with theme specific shapes & borders
                     val confirmButtonShape = when (appTheme) {
                         GlowTheme.ACADEMIC_SERENITY -> MaterialTheme.shapes.medium
@@ -405,12 +411,12 @@ fun GlowDatePickerDialog(
                         GlowTheme.AMOLED_POP -> RoundedCornerShape(4.dp)
                         GlowTheme.VINTAGE_LIBRARY -> MaterialTheme.shapes.small
                     }
-                    
+
                     val confirmButtonBorder = when (appTheme) {
                         GlowTheme.AMOLED_POP -> BorderStroke(1.dp, primaryColor)
                         else -> null
                     }
-                    
+
                     val confirmButtonColors = when (appTheme) {
                         GlowTheme.AMOLED_POP -> ButtonDefaults.buttonColors(
                             containerColor = Color.Transparent,
@@ -440,7 +446,7 @@ fun GlowDatePickerDialog(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "确定",
+                                text = confirmStr,
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = if (appTheme == GlowTheme.AMOLED_POP) FontFamily.Monospace else null

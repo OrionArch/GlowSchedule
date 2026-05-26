@@ -16,6 +16,7 @@ import androidx.glance.background
 import androidx.glance.layout.*
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import com.example.schday.R
 import com.example.schday.data.AppDatabase
 import com.example.schday.data.DefaultDataRepository
 import com.example.schday.data.entity.CourseWithSchedules
@@ -37,17 +38,34 @@ class ScheduleWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val db = AppDatabase.getDatabase(context)
-        val repository = DefaultDataRepository(db)
-        
+        val repository = DefaultDataRepository(db, context)
+
         val semester = repository.getCurrentSemester().first()
         val courses = semester?.let { repository.getCoursesBySemester(it.id).first() } ?: emptyList()
         val periods = repository.getAllPeriodTimes().first()
 
         Log.d("ScheduleWidget", "provideGlance: semester=${semester?.name}, coursesCount=${courses.size}, periodsCount=${periods.size}")
 
+        // Pre-resolve all strings in provideGlance (non-Composable context)
+        val noSemesterStr = context.getString(R.string.widget_no_semester)
+        val noClassTodayStr = context.getString(R.string.widget_no_class_today)
+        val enjoyDayStr = context.getString(R.string.widget_enjoy_day)
+        val classesDoneStr = context.getString(R.string.widget_classes_done)
+        val noMoreClassesStr = context.getString(R.string.widget_no_more_classes)
+        val inProgressStr = context.getString(R.string.widget_in_progress)
+        val nextClassStr = context.getString(R.string.widget_next_class)
+        val classroomLabelStr = context.getString(R.string.widget_classroom_label)
+        val teacherLabelStr = context.getString(R.string.widget_teacher_label)
+
         provideContent {
             GlanceTheme {
-                WidgetContent(semester, courses, periods)
+                WidgetContent(
+                    semester, courses, periods,
+                    noSemesterStr, noClassTodayStr, enjoyDayStr,
+                    classesDoneStr, noMoreClassesStr,
+                    inProgressStr, nextClassStr,
+                    classroomLabelStr, teacherLabelStr
+                )
             }
         }
     }
@@ -81,7 +99,16 @@ class ScheduleWidget : GlanceAppWidget() {
     private fun WidgetContent(
         semester: Semester?,
         courses: List<CourseWithSchedules>,
-        periods: List<PeriodTime>
+        periods: List<PeriodTime>,
+        noSemesterStr: String,
+        noClassTodayStr: String,
+        enjoyDayStr: String,
+        classesDoneStr: String,
+        noMoreClassesStr: String,
+        inProgressStr: String,
+        nextClassStr: String,
+        classroomLabelStr: String,
+        teacherLabelStr: String
     ) {
         if (semester == null) {
             Box(
@@ -89,7 +116,7 @@ class ScheduleWidget : GlanceAppWidget() {
                     .background(ImageProvider(com.example.schday.R.drawable.widget_glass_background)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("暂无当前学期信息", style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 12.sp))
+                Text(noSemesterStr, style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 12.sp))
             }
             return
         }
@@ -135,7 +162,7 @@ class ScheduleWidget : GlanceAppWidget() {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "今日无课",
+                            text = noClassTodayStr,
                             style = TextStyle(
                                 color = GlanceTheme.colors.primary,
                                 fontWeight = androidx.glance.text.FontWeight.Bold,
@@ -144,7 +171,7 @@ class ScheduleWidget : GlanceAppWidget() {
                         )
                         Spacer(modifier = GlanceModifier.height(2.dp))
                         Text(
-                            text = "享受美好的一天吧！",
+                            text = enjoyDayStr,
                             style = TextStyle(
                                 color = GlanceTheme.colors.secondary,
                                 fontSize = 10.sp
@@ -163,14 +190,14 @@ class ScheduleWidget : GlanceAppWidget() {
             val endStr = periodTime?.endTime ?: "00:00"
             val startMillis = parseTimeStringToday(startStr)
             val endMillis = parseTimeStringToday(endStr)
-            
+
             val isActive = now in startMillis..endMillis
             val isUpcoming = startMillis > now
-            
+
             if (isActive && activeIndex == -1) {
                 activeIndex = index
             }
-            
+
             WidgetSlotItem(
                 courseWithSchedules = courseWithSchedules,
                 slot = slot,
@@ -182,10 +209,55 @@ class ScheduleWidget : GlanceAppWidget() {
             )
         }
 
+        val upcomingItem = processedSlots.firstOrNull { it.isUpcoming }
+
+        if (activeIndex == -1 && upcomingItem == null) {
+            Box(
+                modifier = GlanceModifier.fillMaxSize()
+                    .background(ImageProvider(com.example.schday.R.drawable.widget_glass_background))
+                    .padding(8.dp)
+            ) {
+                Row(
+                    modifier = GlanceModifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = GlanceModifier
+                            .width(4.dp)
+                            .fillMaxHeight()
+                            .background(ImageProvider(com.example.schday.R.drawable.card_slate_background))
+                    ) {}
+                    Spacer(modifier = GlanceModifier.width(8.dp))
+                    Column(
+                        modifier = GlanceModifier.fillMaxHeight(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = classesDoneStr,
+                            style = TextStyle(
+                                color = GlanceTheme.colors.primary,
+                                fontWeight = androidx.glance.text.FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        )
+                        Spacer(modifier = GlanceModifier.height(2.dp))
+                        Text(
+                            text = noMoreClassesStr,
+                            style = TextStyle(
+                                color = GlanceTheme.colors.secondary,
+                                fontSize = 10.sp
+                            )
+                        )
+                    }
+                }
+            }
+            return
+        }
+
         val mainItem = if (activeIndex != -1) {
             processedSlots[activeIndex]
         } else {
-            processedSlots.firstOrNull { it.isUpcoming } ?: processedSlots.first()
+            upcomingItem!!
         }
 
         Box(
@@ -209,9 +281,9 @@ class ScheduleWidget : GlanceAppWidget() {
                         .fillMaxHeight()
                         .background(ImageProvider(barDrawable))
                 ) {}
-                
+
                 Spacer(modifier = GlanceModifier.width(8.dp))
-                
+
                 Column(
                     modifier = GlanceModifier.fillMaxHeight().defaultWeight(),
                     verticalAlignment = Alignment.CenterVertically
@@ -220,7 +292,7 @@ class ScheduleWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val stateText = if (mainItem.isActive) "进行中" else "下一节"
+                        val stateText = if (mainItem.isActive) inProgressStr else nextClassStr
                         val stateColor = if (mainItem.isActive) {
                             GlanceTheme.colors.primary
                         } else {
@@ -251,9 +323,9 @@ class ScheduleWidget : GlanceAppWidget() {
                             )
                         )
                     }
-                    
+
                     Spacer(modifier = GlanceModifier.height(2.dp))
-                    
+
                     Text(
                         text = mainItem.courseWithSchedules.course.name,
                         style = TextStyle(
@@ -263,21 +335,21 @@ class ScheduleWidget : GlanceAppWidget() {
                         ),
                         maxLines = 1
                     )
-                    
+
                     Spacer(modifier = GlanceModifier.height(2.dp))
-                    
+
                     if (mainItem.isActive) {
                         val duration = mainItem.endMillis - mainItem.startMillis
                         val elapsed = now - mainItem.startMillis
                         val progress = if (duration > 0) elapsed.toFloat() / duration.toFloat() else 0f
                         val clampedProgress = progress.coerceIn(0f, 1f)
-                        
+
                         Row(
                             modifier = GlanceModifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "教室: ${mainItem.slot.classroom}",
+                                text = classroomLabelStr.format(mainItem.slot.classroom),
                                 style = TextStyle(
                                     color = GlanceTheme.colors.secondary,
                                     fontSize = 10.sp
@@ -291,12 +363,12 @@ class ScheduleWidget : GlanceAppWidget() {
                         }
                     } else {
                         val teacherStr = if (mainItem.courseWithSchedules.course.teacher.isNotBlank()) {
-                            " | 教师: ${mainItem.courseWithSchedules.course.teacher}"
+                            " | " + teacherLabelStr.format(mainItem.courseWithSchedules.course.teacher)
                         } else {
                             ""
                         }
                         Text(
-                            text = "教室: ${mainItem.slot.classroom}$teacherStr",
+                            text = classroomLabelStr.format(mainItem.slot.classroom) + teacherStr,
                             style = TextStyle(
                                 color = GlanceTheme.colors.secondary,
                                 fontSize = 10.sp

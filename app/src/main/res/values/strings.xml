@@ -1,3 +1,281 @@
 <resources>
     <string name="app_name">拾光课表</string>
+
+    <!-- Shared/common strings -->
+    <string name="confirm">确定</string>
+    <string name="cancel">取消</string>
+    <string name="add">添加</string>
+    <string name="save">保存</string>
+    <string name="back">返回</string>
+    <string name="delete">删除</string>
+    <string name="no_semester_hint">请先去设置页面创建一个学期！</string>
+    <string name="create_semester_settings_hint">请先去设置中创建当前活动的学期</string>
+    <string name="import_success">成功导入 %1$d 门课程！</string>
+    <string name="import_complete">导入完成！</string>
+    <string name="course_default">课程</string>
+
+    <!-- Day of week names (used by DateUtils and others) -->
+    <string-array name="day_of_week_names">
+        <item>周一</item>
+        <item>周二</item>
+        <item>周三</item>
+        <item>周四</item>
+        <item>周五</item>
+        <item>周六</item>
+        <item>周日</item>
+    </string-array>
+
+    <!-- Short day header names for date picker -->
+    <string-array name="calendar_day_headers">
+        <item>日</item>
+        <item>一</item>
+        <item>二</item>
+        <item>三</item>
+        <item>四</item>
+        <item>五</item>
+        <item>六</item>
+    </string-array>
+
+    <!-- Theme names -->
+    <string name="theme_academic_serenity">极简莫兰迪</string>
+    <string name="theme_deep_charcoal">摩登暗黑粉彩</string>
+    <string name="theme_amoled_pop">纯黑波普</string>
+    <string name="theme_vintage_library">复古书卷</string>
+
+    <!-- MainScreen bottom nav -->
+    <string name="nav_today">今日</string>
+    <string name="nav_timetable">课表</string>
+    <string name="nav_todo">待办</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- MainScreen glow code dialog -->
+    <string name="glow_code_discovered">🐈 发现拾光分享口令</string>
+    <string name="glow_code_clipboard_hint">检测到剪贴板中含有班级共享课表：</string>
+    <string name="ignore">忽略</string>
+    <string name="import_schedule">导入课表</string>
+    <string name="create_semester_first">请先去设置页面创建一个学期！</string>
+
+    <!-- HomeTab -->
+    <string name="home_today_is">今天是 %1$s</string>
+    <string name="home_mascot_sleeping">睡觉中喵</string>
+    <string name="home_mascot_energetic">元气满满</string>
+    <string name="home_mascot_focused">专心读书</string>
+    <string name="home_mascot_overworked">学海无涯</string>
+    <string name="home_mascot_prefix">拾光猫 · %1$s</string>
+    <string name="home_quote_1">高数课别睡觉，猫猫看着你呢 🐱</string>
+    <string name="home_quote_2">完成作业了？奖励猫猫一罐小鱼干嘛！🐟</string>
+    <string name="home_quote_3">今天课很少，是出去溜达的好天气喵！☀️</string>
+    <string name="home_quote_4">要按时吃饭，胃痛的话猫猫会担心的 🥛</string>
+    <string name="home_quote_5">有烦心事？摸摸猫猫的脑瓜吧！🐾</string>
+    <string name="home_quote_6">今天居然有 %1$d 节课，挺住喵！🎒</string>
+    <string name="home_quote_7">期末不挂科，全靠平时不划水喵 😜</string>
+    <string name="home_quote_8">猫生漫漫，学习加油！奥利给！🚀</string>
+    <string name="home_add_course">添加课程</string>
+    <string name="home_today_schedule">今日课程日程</string>
+    <string name="home_no_class_today">今天没课！快去享受自由时光吧～</string>
+    <string name="home_status_in_class">正在上课</string>
+    <string name="home_status_upcoming">下堂课预告</string>
+    <string name="home_status_done">课程结束</string>
+    <string name="home_no_more_classes">今天没有更多课程了</string>
+    <string name="home_all_done">呼～今天的课全部搞定！开启美好的课后时光吧 🥳</string>
+    <string name="home_completed">已完成</string>
+    <string name="home_pending_todo">📝 待办</string>
+    <string name="home_period_range">第 %1$d-%2$d 节</string>
+    <string name="home_countdown_active">下课倒计时：还剩 %1$d 分钟，加油！</string>
+    <string name="home_countdown_upcoming">下堂课准备中：还剩 %1$d 分钟上课，别迟到哦 🏃‍♂️</string>
+    <string name="home_dnd_title">上课静音自动防护</string>
+    <string name="home_dnd_extending">手动静音延长中: 剩 %1$d 分钟</string>
+    <string name="home_dnd_active">静音自动化已启动</string>
+    <string name="home_extend_one_hour">延长1小时</string>
+    <string name="home_transit_title">拾光猫跑课助手 · 外面正在下雨 🌧️</string>
+    <string name="home_transit_message">下节课「%1$s」在 %2$s，距离上节课 %3$s 较远。外面正在下雨，记得带伞并提早出发哦！</string>
+    <string name="home_sentiment_title">🎓 课后心情墙</string>
+    <string name="home_sentiment_question">刚刚的「%1$s」上得怎么样？</string>
+    <string name="home_sentiment_awesome">太牛了</string>
+    <string name="home_sentiment_nailed_it">拿下</string>
+    <string name="home_sentiment_mind_blown">学废了</string>
+    <string name="home_sentiment_run">快逃</string>
+    <string name="home_sentiment_sleepy">困了</string>
+    <string name="home_sentiment_synced">心情已同步！</string>
+    <string name="home_sentiment_report">你对这节课的心情是 %1$s。拾光猫会在学期末为你生成大学生存情感报告哦！</string>
+    <string name="home_date_format">MM月dd日</string>
+
+    <!-- TimetableTab -->
+    <string name="timetable_week_label">第 %1$d 周</string>
+    <string name="timetable_week_label_current">第 %1$d 周 (本周)</string>
+    <string name="timetable_back_to_current">回到本周</string>
+    <string name="timetable_show_current_only">只显本周</string>
+    <string name="timetable_hide_weekends">隐藏周末</string>
+    <string name="timetable_conflict_count">⚠️ 该时段有 %1$d 门冲突课程</string>
+    <string name="timetable_teacher">任课教师</string>
+    <string name="timetable_not_specified">未指定</string>
+    <string name="timetable_classroom">上课教室</string>
+    <string name="timetable_time">上课时间</string>
+    <string name="timetable_weeks">上课周数</string>
+    <string name="timetable_period_format_with_time">%1$s 第 %2$d-%3$d 节 (%4$s - %5$s)</string>
+    <string name="timetable_period_format">%1$s 第 %2$d-%3$d 节</string>
+    <string name="timetable_weeks_value">第 %1$s 周</string>
+    <string name="timetable_related_homework">📋 关联待办</string>
+    <string name="timetable_homework_done">已完成</string>
+    <string name="timetable_homework_pending">待完成</string>
+    <string name="timetable_pin_to_top">置顶显示</string>
+    <string name="timetable_edit_course">编辑课程</string>
+    <string name="timetable_not_this_week">非本周</string>
+
+    <!-- TodoTab -->
+    <string name="todo_title">作业与考试待办</string>
+    <string name="todo_quick_add">快速添加待办</string>
+    <string name="todo_link_course">关联课程</string>
+    <string name="todo_input_placeholder">输入任务内容...</string>
+    <string name="todo_add">添加</string>
+    <string name="todo_in_progress">进行中</string>
+    <string name="todo_unknown_course">未知课程</string>
+    <string name="todo_completed_section">已完成</string>
+    <string name="todo_empty_message">当前没有任何待办任务！</string>
+    <string name="todo_status_completed">已完成</string>
+    <string name="todo_status_overdue">已过期</string>
+    <string name="todo_due_today">今天截止</string>
+    <string name="todo_due_tomorrow">明天截止</string>
+    <string name="todo_days_remaining">剩 %1$d 天</string>
+    <string name="todo_delete_task">删除任务</string>
+
+    <!-- AddEditCourseScreen -->
+    <string name="edit_add_course">添加课程</string>
+    <string name="edit_edit_course">编辑课程</string>
+    <string name="edit_navigate_back">返回</string>
+    <string name="edit_save">保存</string>
+    <string name="edit_basic_info">基本信息</string>
+    <string name="edit_course_name_required">课程名称 *</string>
+    <string name="edit_teacher">任课老师</string>
+    <string name="edit_card_color">课程卡片色彩</string>
+    <string name="edit_time_and_classroom">上课时间与教室</string>
+    <string name="edit_time_slot_label">时段 #%1$d</string>
+    <string name="edit_delete_time_slot">删除该时段</string>
+    <string name="edit_period_hint">上课节次区间 (横滑选择起点与终点)</string>
+    <string name="edit_period_unit">节</string>
+    <string name="edit_classroom_field">上课教室</string>
+    <string name="edit_weeks_all_selected">上课周：全选 (1-20周)</string>
+    <string name="edit_weeks_partial">上课周：已选 %1$d 周 (点按编辑)</string>
+    <string name="edit_add_time_slot">增加上课时间段</string>
+    <string name="edit_delete_course">删除这门课程</string>
+    <string name="edit_select_weeks">选择上课周</string>
+    <string name="edit_select_all">全选</string>
+    <string name="edit_odd_weeks">单周</string>
+    <string name="edit_even_weeks">双周</string>
+    <string name="edit_clear">清空</string>
+    <string name="edit_week_unit">%1$d 周</string>
+
+    <!-- ImportCoursesScreen -->
+    <string name="import_parse_or_clash_fail">解析或检查冲突失败: %1$s</string>
+    <string name="import_fail">导入失败: %1$s</string>
+    <string name="import_clash_title">课程日程冲突</string>
+    <string name="import_keep_both">保留两者</string>
+    <string name="import_overwrite">覆盖已有</string>
+    <string name="import_skip">跳过此门</string>
+    <string name="import_clash_overlap_hint">您正在导入的课程与已有课程存在时间重叠：</string>
+    <string name="import_clash_time">冲突时间：%1$s 第 %2$d-%3$d 节</string>
+    <string name="import_clash_weeks">重叠周数：第 %1$s 周</string>
+    <string name="import_existing_course">已有课程: %1$s</string>
+    <string name="import_teacher_label">教师: %1$s</string>
+    <string name="import_classroom_label">教室: %1$s</string>
+    <string name="import_new_course">待导入课程: %1$s</string>
+    <string name="import_screen_title">导入课程表</string>
+    <string name="import_tab_ai">AI截图</string>
+    <string name="import_tab_csv">CSV表格</string>
+    <string name="import_ai_parse_fail">解析 AI 数据失败: %1$s</string>
+    <string name="import_csv_title">📊 CSV 课程表导入</string>
+    <string name="import_csv_instructions">您可以使用 Excel 创建课表，保存为 CSV 格式后导入。模板格式要求如下：\n每行代表一个上课时段，逗号分隔，列顺序为：\n课程名称, 任课教师, 上课教室, 星期几 (1-7), 开始节次 (1-12), 结束节次 (1-12), 逗号分隔的周数...\n例: 高等数学, 张教授, 教三302, 1, 1, 2, 1,2,3,4,5,6,7,8</string>
+    <string name="import_csv_pick">选择 CSV 文件导入</string>
+    <string name="import_ai_title">📷 AI 截图智能提取</string>
+    <string name="import_ai_description">您可以对任何其他软件或网页上的课表进行截图。复制下方精心定制 of AI 提示词，并连同截图一起发送给多模态 AI（如 ChatGPT、Claude、Gemini），AI 识别后会将课表转换为 JSON 格式，您将其粘贴在下方即可快速导入！</string>
+    <string name="import_ai_prompt_label">💡 多模态 AI 提示词 (可直接复制):</string>
+    <string name="import_ai_copied">提示词已复制到剪贴板，请去发送给多模态 AI 吧！</string>
+    <string name="import_copy_prompt">复制 AI 提示词</string>
+    <string name="import_json_label">粘贴 AI 输出的 JSON 代码块</string>
+    <string name="import_json_placeholder">[\n  {\n    \"name\": \"高等数学\",\n    ...\n  }\n]</string>
+    <string name="import_ai_prompt_text">你是一个专业的课表数据提取 AI。请仔细分析我上传的课表截图，把其中的课程名称、老师、教室、上课星期（1-7，1代表周一，7代表周日）、开始/结束节次（1-12）、以及上课周数等提取成标准的 JSON 数组格式并直接输出（不要带多余的解释，只需要 JSON 格式）。格式示例如下：\n[\n  {\n    \"name\": \"高等数学\",\n    \"teacher\": \"李教授\",\n    \"classroom\": \"教三302\",\n    \"day\": 1,\n    \"start\": 3,\n    \"end\": 4,\n    \"weeks\": \"1,2,3,4,5,6,7,8\"\n  }\n]</string>
+    <string name="import_start_parse">开始解析并一键导入</string>
+
+    <!-- SettingsTab -->
+    <string name="settings_title">系统设置与配置</string>
+    <string name="settings_import_section">一键导入课表</string>
+    <string name="settings_import_description">支持通过教务系统（WebView 智能抓取）或导入 Excel/CSV 文件模板批量添加课程。</string>
+    <string name="settings_go_import">前往导入课表页面</string>
+    <string name="settings_theme_section">个性化主题定制</string>
+    <string name="settings_theme_description">选择您喜爱的主题色彩，打造专属艺术感课表应用。</string>
+    <string name="settings_semester_section">学期管理</string>
+    <string name="settings_first_day">开学第一天: %1$s</string>
+    <string name="settings_current_selection">当前选择</string>
+    <string name="settings_add_semester">新增学期</string>
+    <string name="settings_schedule_table">作息时间表 (12节)</string>
+    <string name="settings_edit_time">编辑时间</string>
+    <string name="settings_period_label">第 %1$d 节</string>
+    <string name="settings_remaining_periods">...... (其余课节时间点击上方编辑查看)</string>
+    <string name="settings_silent_section">上课静音自动化与课前提醒</string>
+    <string name="settings_enable_auto_mute">启用自动静音</string>
+    <string name="settings_grant_dnd">请在跳转页面中授予"勿扰"访问权限！</string>
+    <string name="settings_mute_mode_label">静音模式选择</string>
+    <string name="settings_mute_dnd">勿扰 (DND)</string>
+    <string name="settings_mute_vibrate">仅振动</string>
+    <string name="settings_mute_silent">完全静音</string>
+    <string name="settings_pre_class_reminder">上课前提醒设置</string>
+    <string name="settings_reminder_time">提醒时间</string>
+    <string name="settings_reminder_on_time">准时提醒</string>
+    <string name="settings_reminder_minutes">提前 %1$d 分钟</string>
+    <string name="settings_backup_section">备份与恢复</string>
+    <string name="settings_export_backup">导出备份</string>
+    <string name="settings_import_backup">恢复备份</string>
+    <string name="settings_clear_data">清空所有数据</string>
+    <string name="settings_load_demo">加载示例数据</string>
+    <string name="settings_data_cleared">所有数据已成功清空！</string>
+    <string name="settings_demo_loaded">示例演示数据已重新载入！</string>
+    <string name="settings_restore_success">数据恢复成功！</string>
+    <string name="settings_restore_fail">恢复失败: %1$s</string>
+    <string name="settings_export_success">备份导出成功！</string>
+    <string name="settings_export_fail">导出失败: %1$s</string>
+    <!-- New semester dialog -->
+    <string name="settings_new_semester">新增学期</string>
+    <string name="settings_semester_name">学期名称</string>
+    <string name="settings_semester_placeholder">例如：2026 春季学期</string>
+    <string name="settings_first_monday">第一周周一: %1$s</string>
+    <!-- Edit periods dialog -->
+    <string name="settings_edit_schedule">修改作息时间表</string>
+    <string name="settings_save_schedule">保存作息</string>
+    <!-- Exact alarm dialog -->
+    <string name="settings_exact_alarm_title">需要精确闹钟权限</string>
+    <string name="settings_exact_alarm_message">为了让自动静音模式和课前提醒准时工作，本应用需要使用系统"精确闹钟"权限。请在随后的设置中开启该权限。</string>
+    <string name="settings_cannot_open_settings">无法打开设置页面，请手动在系统设置中搜索授权。</string>
+    <string name="settings_go_settings">去设置</string>
+    <!-- Time picker -->
+    <string name="settings_set_class_time">设置上课时间</string>
+
+    <!-- ScheduleWidget -->
+    <string name="widget_no_semester">暂无当前学期信息</string>
+    <string name="widget_no_class_today">今日无课</string>
+    <string name="widget_enjoy_day">享受美好的一天吧！</string>
+    <string name="widget_classes_done">今日课程已结束</string>
+    <string name="widget_no_more_classes">今天没有后续课程啦！</string>
+    <string name="widget_in_progress">进行中</string>
+    <string name="widget_next_class">下一节</string>
+    <string name="widget_classroom_label">教室: %1$s</string>
+    <string name="widget_teacher_label">教师: %1$s</string>
+
+    <!-- ClassAlarmReceiver -->
+    <string name="alarm_class_reminder_channel">课程提醒</string>
+    <string name="alarm_homework_reminder_channel">作业提醒</string>
+    <string name="alarm_coming_with_room">即将上课，教室: %1$s</string>
+    <string name="alarm_coming_no_room">课程即将开始，做好准备哦！</string>
+    <string name="alarm_class_reminder_title">上课提醒: %1$s</string>
+    <string name="alarm_single_homework">您有1项待办作业: [%1$s] %2$s</string>
+    <string name="alarm_multi_homework">您有 %1$d 项作业即将在48小时内截止，请及时完成！</string>
+    <string name="alarm_homework_detail_prefix">以下作业即将在48小时内截止：\n</string>
+    <string name="alarm_homework_deadline_title">作业截止提醒</string>
+
+    <!-- GlowCodeManager -->
+    <string name="glow_code_default_title">已共享的课表</string>
+
+    <!-- GlowDatePicker -->
+    <string name="datepicker_prev_month">上个月</string>
+    <string name="datepicker_next_month">下个月</string>
+    <string name="datepicker_month_format">yyyy年 MM月</string>
 </resources>

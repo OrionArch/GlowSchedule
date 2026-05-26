@@ -1,5 +1,6 @@
 package com.example.schday.utils
 
+import android.content.Context
 import java.util.*
 
 object DateUtils {
@@ -63,6 +64,32 @@ object DateUtils {
             6 -> "周六"
             7 -> "周日"
             else -> ""
+        }
+    }
+
+    fun getDayName(context: Context, dayOfWeek: Int): String {
+        val names = context.resources.getStringArray(com.example.schday.R.array.day_of_week_names)
+        val index = dayOfWeek - 1
+        return if (index in names.indices) names[index] else ""
+    }
+
+    fun triggerHapticFeedback(context: android.content.Context, milliseconds: Long = 30) {
+        try {
+            val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                val vibratorManager = context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager
+                vibratorManager.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(milliseconds, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(milliseconds)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

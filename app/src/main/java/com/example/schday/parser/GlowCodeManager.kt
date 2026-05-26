@@ -80,7 +80,7 @@ object GlowCodeManager {
             val jsonStr = String(bytes, StandardCharsets.UTF_8)
             val rootObj = JSONObject(jsonStr)
 
-            val title = rootObj.optString("title", "已共享的课表")
+            val title = rootObj.optString("title", "")
             val coursesArr = rootObj.getJSONArray("courses")
             val coursesList = mutableListOf<SharedCourse>()
 

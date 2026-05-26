@@ -46,11 +46,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.schday.R
 import com.example.schday.data.entity.PeriodTime
 import com.example.schday.data.entity.Semester
 import com.example.schday.theme.GlowTheme
@@ -79,7 +81,7 @@ fun SettingsTab(
     onAddSemester: (Semester) -> Unit,
     onUpdatePeriods: (List<PeriodTime>) -> Unit,
     onImportJson: (String) -> Unit,
-    onExportJson: () -> String,
+    onExportJson: suspend () -> String,
     onImportClick: () -> Unit, // Navigate to crawler import screen
     onClearData: () -> Unit,
     onLoadDemoData: () -> Unit
@@ -91,12 +93,12 @@ fun SettingsTab(
     var showAddSemesterDialog by remember { mutableStateOf(false) }
     var newSemesterName by remember { mutableStateOf("") }
     val calendar = Calendar.getInstance()
-    var newSemesterStartMillis by remember { mutableStateOf(calendar.timeInMillis) }
+    var newSemesterStartMillis by remember { mutableLongStateOf(calendar.timeInMillis) }
     var showDatePicker by remember { mutableStateOf(false) }
 
     // Dialog state for editing class period times
     var showEditPeriodsDialog by remember { mutableStateOf(false) }
-    
+
     // Active time editing states (for period row and time field index)
     var activeTimeEditPeriodIdx by remember { mutableStateOf<Int?>(null) }
     var activeTimeEditIsStart by remember { mutableStateOf(true) }
@@ -104,9 +106,25 @@ fun SettingsTab(
     // Silent Mode Settings
     val sharedPreferences = remember { context.getSharedPreferences("schday_settings", Context.MODE_PRIVATE) }
     var autoMuteEnabled by remember { mutableStateOf(sharedPreferences.getBoolean("auto_mute_enabled", false)) }
-    var silentModeType by remember { mutableStateOf(sharedPreferences.getInt("auto_mute_type", 0)) } // 0 = DND, 1 = Vibrate, 2 = Silent
-    var preClassReminderOffset by remember { mutableStateOf(sharedPreferences.getInt("pre_class_reminder_offset", 10)) }
+    var silentModeType by remember { mutableIntStateOf(sharedPreferences.getInt("auto_mute_type", 0)) } // 0 = DND, 1 = Vibrate, 2 = Silent
+    var preClassReminderOffset by remember { mutableIntStateOf(sharedPreferences.getInt("pre_class_reminder_offset", 10)) }
     var showExactAlarmDialog by remember { mutableStateOf(false) }
+
+    // Resolve strings for non-Composable contexts
+    val restoreSuccessStr = stringResource(R.string.settings_restore_success)
+    val restoreFailStr = stringResource(R.string.settings_restore_fail)
+    val exportSuccessStr = stringResource(R.string.settings_export_success)
+    val exportFailStr = stringResource(R.string.settings_export_fail)
+    val grantDndStr = stringResource(R.string.settings_grant_dnd)
+    val cannotOpenSettingsStr = stringResource(R.string.settings_cannot_open_settings)
+    val dataClearedStr = stringResource(R.string.settings_data_cleared)
+    val demoLoadedStr = stringResource(R.string.settings_demo_loaded)
+    val muteModes = listOf(
+        stringResource(R.string.settings_mute_dnd),
+        stringResource(R.string.settings_mute_vibrate),
+        stringResource(R.string.settings_mute_silent)
+    )
+    val reminderOnTimeStr = stringResource(R.string.settings_reminder_on_time)
 
     // JSON file picker activity launcher
     val importLauncher = rememberLauncherForActivityResult(
@@ -123,9 +141,9 @@ fun SettingsTab(
                 }
                 inputStream?.close()
                 onImportJson(stringBuilder.toString())
-                Toast.makeText(context, "数据恢复成功！", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, restoreSuccessStr, Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                Toast.makeText(context, "恢复失败: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, restoreFailStr.format(e.message), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -135,14 +153,16 @@ fun SettingsTab(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                val jsonString = onExportJson()
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    outputStream.write(jsonString.toByteArray())
+            coroutineScope.launch {
+                try {
+                    val jsonString = onExportJson()
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        outputStream.write(jsonString.toByteArray())
+                    }
+                    Toast.makeText(context, exportSuccessStr, Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, exportFailStr.format(e.message), Toast.LENGTH_LONG).show()
                 }
-                Toast.makeText(context, "备份导出成功！", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(context, "导出失败: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -163,7 +183,7 @@ fun SettingsTab(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "系统设置与配置",
+            text = stringResource(R.string.settings_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.onBackground
@@ -183,15 +203,15 @@ fun SettingsTab(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("一键导入课表", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text("支持通过教务系统（WebView 智能抓取）或导入 Excel/CSV 文件模板批量添加课程。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                
+                Text(stringResource(R.string.settings_import_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.settings_import_description), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
                 Button(
                     onClick = onImportClick,
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium
                 ) {
-                    Text("前往导入课表页面", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.settings_go_import), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -210,18 +230,18 @@ fun SettingsTab(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("个性化主题定制", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("选择您喜爱的主题色彩，打造专属艺术感课表应用。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                
+                Text(stringResource(R.string.settings_theme_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_theme_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    GlowTheme.values().forEach { theme ->
+                    GlowTheme.entries.forEach { theme ->
                         val isSelected = appTheme == theme
                         val borderCol = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
                         val borderWidth = if (isSelected) 2.dp else 1.dp
-                        
+
                         Card(
                             modifier = Modifier
                                 .weight(1f)
@@ -245,7 +265,7 @@ fun SettingsTab(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = theme.displayName,
+                                    text = theme.getDisplayName(context),
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Black else FontWeight.Medium,
                                     color = when(theme) {
@@ -254,7 +274,7 @@ fun SettingsTab(
                                     },
                                     textAlign = TextAlign.Center
                                 )
-                                
+
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -290,7 +310,7 @@ fun SettingsTab(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("学期管理", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_semester_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
                 semesters.forEach { semester ->
                     val isCurrent = semester.id == currentSemester?.id
@@ -305,10 +325,10 @@ fun SettingsTab(
                         Column {
                             Text(semester.name, fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal)
                             val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(semester.startDate))
-                            Text("开学第一天: $formattedDate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.settings_first_day, formattedDate), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (isCurrent) {
-                            Icon(Icons.Default.Check, contentDescription = "当前选择", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.settings_current_selection), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -319,7 +339,7 @@ fun SettingsTab(
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
                 ) {
-                    Text("新增学期")
+                    Text(stringResource(R.string.settings_add_semester))
                 }
             }
         }
@@ -343,9 +363,9 @@ fun SettingsTab(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("作息时间表 (12节)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.settings_schedule_table), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     IconButton(onClick = { showEditPeriodsDialog = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "编辑时间")
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.settings_edit_time))
                     }
                 }
 
@@ -354,12 +374,12 @@ fun SettingsTab(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("第 ${period.periodNumber} 节", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.settings_period_label, period.periodNumber), style = MaterialTheme.typography.bodyMedium)
                         Text("${period.startTime} - ${period.endTime}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 if (periods.size > 5) {
-                    Text("...... (其余课节时间点击上方编辑查看)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.settings_remaining_periods), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -378,21 +398,21 @@ fun SettingsTab(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("上课静音自动化与课前提醒", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_silent_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("启用自动静音")
+                    Text(stringResource(R.string.settings_enable_auto_mute))
                     Switch(
                         checked = autoMuteEnabled,
                         onCheckedChange = { checked ->
                             if (checked) {
                                 val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !notificationManager.isNotificationPolicyAccessGranted) {
-                                    Toast.makeText(context, "请在跳转页面中授予“勿扰”访问权限！", Toast.LENGTH_LONG).show()
+                                if (!notificationManager.isNotificationPolicyAccessGranted) {
+                                    Toast.makeText(context, grantDndStr, Toast.LENGTH_LONG).show()
                                     val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
                                     context.startActivity(intent)
                                     return@Switch
@@ -412,10 +432,10 @@ fun SettingsTab(
                 }
 
                 if (autoMuteEnabled) {
-                    Text("静音模式选择", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    
+                    Text(stringResource(R.string.settings_mute_mode_label), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("勿扰 (DND)", "仅振动", "完全静音").forEachIndexed { index, mode ->
+                        muteModes.forEachIndexed { index, mode ->
                             val isSelected = silentModeType == index
                             OutlinedButton(
                                 onClick = {
@@ -437,28 +457,28 @@ fun SettingsTab(
 
                 GlowDivider(appTheme = appTheme, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                Text("上课前提醒设置", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_pre_class_reminder), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("提醒时间", style = MaterialTheme.typography.bodyMedium)
-                    
+                    Text(stringResource(R.string.settings_reminder_time), style = MaterialTheme.typography.bodyMedium)
+
                     var expanded by remember { mutableStateOf(false) }
                     Box {
                         OutlinedButton(
                             onClick = { expanded = true },
                             shape = MaterialTheme.shapes.small
                         ) {
-                            Text(if (preClassReminderOffset == 0) "准时提醒" else "提前 $preClassReminderOffset 分钟")
+                            Text(if (preClassReminderOffset == 0) reminderOnTimeStr else stringResource(R.string.settings_reminder_minutes, preClassReminderOffset))
                         }
-                        
+
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             listOf(0, 5, 10, 15, 20, 30).forEach { offset ->
                                 DropdownMenuItem(
-                                    text = { Text(if (offset == 0) "准时提醒" else "提前 $offset 分钟") },
+                                    text = { Text(if (offset == 0) reminderOnTimeStr else stringResource(R.string.settings_reminder_minutes, offset)) },
                                     onClick = {
                                         if (offset > 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -469,11 +489,12 @@ fun SettingsTab(
                                         preClassReminderOffset = offset
                                         sharedPreferences.edit().putInt("pre_class_reminder_offset", offset).apply()
                                         expanded = false
-                                        
+
                                         // Reactively reschedule alarms when reminder offset changes
                                         coroutineScope.launch {
                                             val repository = com.example.schday.data.DefaultDataRepository(
-                                                com.example.schday.data.AppDatabase.getDatabase(context)
+                                                com.example.schday.data.AppDatabase.getDatabase(context),
+                                                context
                                             )
                                             com.example.schday.scheduler.AlarmScheduler.scheduleTodayAlarms(context, repository)
                                         }
@@ -500,7 +521,7 @@ fun SettingsTab(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("备份与恢复", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.settings_backup_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -512,7 +533,7 @@ fun SettingsTab(
                         shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
                     ) {
-                        Text("导出备份")
+                        Text(stringResource(R.string.settings_export_backup))
                     }
 
                     Button(
@@ -520,7 +541,7 @@ fun SettingsTab(
                         modifier = Modifier.weight(1f),
                         shape = MaterialTheme.shapes.medium
                     ) {
-                        Text("恢复备份")
+                        Text(stringResource(R.string.settings_import_backup))
                     }
                 }
             }
@@ -547,25 +568,25 @@ fun SettingsTab(
                     Button(
                         onClick = {
                             onClearData()
-                            Toast.makeText(context, "所有数据已成功清空！", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, dataClearedStr, Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.weight(1f),
                         shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
-                        Text("清空所有数据")
+                        Text(stringResource(R.string.settings_clear_data))
                     }
 
                     Button(
                         onClick = {
                             onLoadDemoData()
-                            Toast.makeText(context, "示例演示数据已重新载入！", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, demoLoadedStr, Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.weight(1.1f),
                         shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
                     ) {
-                        Text("加载示例数据")
+                        Text(stringResource(R.string.settings_load_demo))
                     }
                 }
             }
@@ -578,14 +599,14 @@ fun SettingsTab(
     if (showAddSemesterDialog) {
         AlertDialog(
             onDismissRequest = { showAddSemesterDialog = false },
-            title = { Text("新增学期", fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.settings_new_semester), fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = newSemesterName,
                         onValueChange = { newSemesterName = it },
-                        label = { Text("学期名称") },
-                        placeholder = { Text("例如：2026 春季学期") },
+                        label = { Text(stringResource(R.string.settings_semester_name)) },
+                        placeholder = { Text(stringResource(R.string.settings_semester_placeholder)) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.small
                     )
@@ -598,7 +619,7 @@ fun SettingsTab(
                         Icon(Icons.Default.DateRange, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(newSemesterStartMillis))
-                        Text("第一周周一: $formattedDate")
+                        Text(stringResource(R.string.settings_first_monday, formattedDate))
                     }
                 }
             },
@@ -606,7 +627,7 @@ fun SettingsTab(
                 TextButton(
                     onClick = {
                         if (newSemesterName.isBlank()) return@TextButton
-                        
+
                         val cal = Calendar.getInstance().apply {
                             timeInMillis = newSemesterStartMillis
                             firstDayOfWeek = Calendar.MONDAY
@@ -628,12 +649,12 @@ fun SettingsTab(
                         showAddSemesterDialog = false
                     }
                 ) {
-                    Text("添加", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.add), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAddSemesterDialog = false }) {
-                    Text("取消")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -658,7 +679,7 @@ fun SettingsTab(
 
         AlertDialog(
             onDismissRequest = { showEditPeriodsDialog = false },
-            title = { Text("修改作息时间表", fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.settings_edit_schedule), fontWeight = FontWeight.Bold) },
             text = {
                 Box(modifier = Modifier.height(300.dp)) {
                     LazyColumn(
@@ -671,8 +692,8 @@ fun SettingsTab(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text("第 ${period.periodNumber} 节", modifier = Modifier.width(50.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                
+                                Text(stringResource(R.string.settings_period_label, period.periodNumber), modifier = Modifier.width(50.dp), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+
                                 // Clickable field for Start Time picker
                                 Box(
                                     modifier = Modifier
@@ -699,9 +720,9 @@ fun SettingsTab(
                                         textStyle = LocalTextStyle.current.copy(fontSize = 11.sp)
                                     )
                                 }
-                                
+
                                 Text("-")
-                                
+
                                 // Clickable field for End Time picker
                                 Box(
                                     modifier = Modifier
@@ -740,12 +761,12 @@ fun SettingsTab(
                         showEditPeriodsDialog = false
                     }
                 ) {
-                    Text("保存作息", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.settings_save_schedule), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEditPeriodsDialog = false }) {
-                    Text("取消")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -774,8 +795,8 @@ fun SettingsTab(
     if (showExactAlarmDialog) {
         AlertDialog(
             onDismissRequest = { showExactAlarmDialog = false },
-            title = { Text("需要精确闹钟权限", fontWeight = FontWeight.Bold) },
-            text = { Text("为了让自动静音模式和课前提醒准时工作，本应用需要使用系统“精确闹钟”权限。请在随后的设置中开启该权限。") },
+            title = { Text(stringResource(R.string.settings_exact_alarm_title), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.settings_exact_alarm_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -787,17 +808,17 @@ fun SettingsTab(
                                 }
                                 context.startActivity(intent)
                             } catch (e: Exception) {
-                                Toast.makeText(context, "无法打开设置页面，请手动在系统设置中搜索授权。", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, cannotOpenSettingsStr, Toast.LENGTH_LONG).show()
                             }
                         }
                     }
                 ) {
-                    Text("去设置", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.settings_go_settings), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showExactAlarmDialog = false }) {
-                    Text("取消")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -826,7 +847,7 @@ fun TimeTumblerDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "设置上课时间",
+                text = stringResource(R.string.settings_set_class_time),
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
@@ -844,7 +865,7 @@ fun TimeTumblerDialog(
                 TumblerWheel(
                     items = hours,
                     listState = hourScrollState,
-                    format = { String.format("%02d", it) },
+                    format = { String.format(Locale.getDefault(), "%02d", it) },
                     modifier = Modifier.weight(1f)
                 )
 
@@ -859,7 +880,7 @@ fun TimeTumblerDialog(
                 TumblerWheel(
                     items = minutes,
                     listState = minuteScrollState,
-                    format = { String.format("%02d", it) },
+                    format = { String.format(Locale.getDefault(), "%02d", it) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -872,15 +893,15 @@ fun TimeTumblerDialog(
                     val mIdx = minuteScrollState.firstVisibleItemIndex + 2
                     val finalHour = hours[hIdx % hours.size]
                     val finalMinute = minutes[mIdx % minutes.size]
-                    onConfirm(String.format("%02d:%02d", finalHour, finalMinute))
+                    onConfirm(String.format(Locale.getDefault(), "%02d:%02d", finalHour, finalMinute))
                 }
             ) {
-                Text("确定", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.confirm), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -894,7 +915,7 @@ fun TumblerWheel(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    var lastSelectedIndex by remember { mutableStateOf(-1) }
+    var lastSelectedIndex by remember { mutableIntStateOf(-1) }
 
     // Derive selection index from center item
     val selectedIndex = remember {

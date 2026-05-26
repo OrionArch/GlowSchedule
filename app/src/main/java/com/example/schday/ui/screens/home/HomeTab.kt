@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.geometry.Offset
 
+import com.example.schday.R
 import com.example.schday.data.entity.CourseWithSchedules
 import com.example.schday.data.entity.PeriodTime
 import com.example.schday.data.entity.ScheduleSlot
@@ -61,15 +63,17 @@ fun HomeTab(
 ) {
     if (semester == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("请先去设置页面创建一个学期！", style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.no_semester_hint), style = MaterialTheme.typography.bodyLarge)
         }
         return
     }
 
+    val context = LocalContext.current
     val currentWeek = DateUtils.getCurrentWeek(semester.startDate, semester.totalWeeks)
     val dayOfWeek = DateUtils.getDayOfWeek()
-    val todayDateStr = SimpleDateFormat("MM月dd日", Locale.getDefault()).format(Date())
-    val todayDayName = DateUtils.getDayName(dayOfWeek)
+    val dateFormatStr = stringResource(R.string.home_date_format)
+    val todayDateStr = SimpleDateFormat(dateFormatStr, Locale.getDefault()).format(Date())
+    val todayDayName = DateUtils.getDayName(context, dayOfWeek)
 
     // Compute active courses for today
     val todaySlots = remember(courses, currentWeek, dayOfWeek) {
@@ -87,7 +91,7 @@ fun HomeTab(
     }
 
     // Timer or clock state to update countdown every minute
-    var timeMinutes by remember { mutableStateOf(getCurrentMinutes()) }
+    var timeMinutes by remember { mutableIntStateOf(getCurrentMinutes()) }
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(15000) // check every 15s
@@ -97,10 +101,9 @@ fun HomeTab(
 
     // Compute countdown status
     val countdownStatus = remember(todaySlots, periods, timeMinutes) {
-        computeCountdown(todaySlots, periods, timeMinutes)
+        computeCountdown(todaySlots, periods, timeMinutes, context)
     }
 
-    val context = LocalContext.current
     val sharedPreferences = remember(context) { context.getSharedPreferences("schday_settings", Context.MODE_PRIVATE) }
 
     // Find active, next, and recently finished slots
@@ -186,7 +189,7 @@ fun HomeTab(
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "添加课程")
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add_course))
                 }
             }
         ) { innerPadding ->
@@ -214,7 +217,7 @@ fun HomeTab(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "今天是 $todayDateStr",
+                                text = stringResource(R.string.home_today_is, todayDateStr),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.onBackground
@@ -224,32 +227,32 @@ fun HomeTab(
                         var showSpeechBubble by remember { mutableStateOf(false) }
                         var speechText by remember { mutableStateOf("") }
                         val workloadCount = todaySlots.size
-                        
+
                         val mascotArt = when {
                             workloadCount == 0 -> "/\\_/\\\n( -.- )\n > Z <" // sleeping
                             workloadCount in 1..2 -> "/\\_/\\\n( o.o )\n > ^ <" // normal
                             workloadCount in 3..4 -> "/\\_/\\\n( ✪.✪ )\n > ✿ <" // focused
                             else -> "/\\_/\\\n( >.< )\n > ~ <" // overworked
                         }
-                        
+
                         val mascotMood = when {
-                            workloadCount == 0 -> "睡觉中喵"
-                            workloadCount in 1..2 -> "元气满满"
-                            workloadCount in 3..4 -> "专心读书"
-                            else -> "学海无涯"
+                            workloadCount == 0 -> stringResource(R.string.home_mascot_sleeping)
+                            workloadCount in 1..2 -> stringResource(R.string.home_mascot_energetic)
+                            workloadCount in 3..4 -> stringResource(R.string.home_mascot_focused)
+                            else -> stringResource(R.string.home_mascot_overworked)
                         }
-                        
+
                         val speechQuotes = listOf(
-                            "高数课别睡觉，猫猫看着你呢 🐱",
-                            "完成作业了？奖励猫猫一罐小鱼干嘛！🐟",
-                            "今天课很少，是出去溜达的好天气喵！☀️",
-                            "要按时吃饭，胃痛的话猫猫会担心的 🥛",
-                            "有烦心事？摸摸猫猫的脑瓜吧！🐾",
-                            "今天居然有 $workloadCount 节课，挺住喵！🎒",
-                            "期末不挂科，全靠平时不划水喵 😜",
-                            "猫生漫漫，学习加油！奥利给！🚀"
+                            stringResource(R.string.home_quote_1),
+                            stringResource(R.string.home_quote_2),
+                            stringResource(R.string.home_quote_3),
+                            stringResource(R.string.home_quote_4),
+                            stringResource(R.string.home_quote_5),
+                            stringResource(R.string.home_quote_6, workloadCount),
+                            stringResource(R.string.home_quote_7),
+                            stringResource(R.string.home_quote_8)
                         )
-                        
+
                         Box(contentAlignment = Alignment.TopEnd) {
                             Column(
                                 modifier = Modifier
@@ -258,17 +261,7 @@ fun HomeTab(
                                         val idx = (speechQuotes.indices).random()
                                         speechText = speechQuotes[idx]
                                         showSpeechBubble = true
-                                        try {
-                                            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
-                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                                vibrator.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
-                                            } else {
-                                                @Suppress("DEPRECATION")
-                                                vibrator.vibrate(20)
-                                            }
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                        }
+                                        DateUtils.triggerHapticFeedback(context, 20)
                                     }
                                     .background(
                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
@@ -292,12 +285,12 @@ fun HomeTab(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "拾光猫 · $mascotMood",
+                                    text = stringResource(R.string.home_mascot_prefix, mascotMood),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                 )
                             }
-                            
+
                             if (showSpeechBubble) {
                                 val yOffsetPx = with(androidx.compose.ui.platform.LocalDensity.current) { (-65).dp.roundToPx() }
                                 androidx.compose.ui.window.Popup(
@@ -364,7 +357,7 @@ fun HomeTab(
                 // Timeline Header
                 item {
                     Text(
-                        text = "今日课程日程",
+                        text = stringResource(R.string.home_today_schedule),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground,
@@ -390,7 +383,7 @@ fun HomeTab(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text("🎉", fontSize = 36.sp)
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text("今天没课！快去享受自由时光吧～", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(stringResource(R.string.home_no_class_today), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -529,8 +522,12 @@ fun CountdownCard(status: CountdownStatus, appTheme: GlowTheme) {
                         )
                     }
 
+                    val statusInClass = stringResource(R.string.home_status_in_class)
+                    val statusUpcoming = stringResource(R.string.home_status_upcoming)
+                    val statusDone = stringResource(R.string.home_status_done)
+
                     Text(
-                        text = if (status.isActive) "正在上课" else if (status.courseName != null) "下堂课预告" else "课程结束",
+                        text = if (status.isActive) statusInClass else if (status.courseName != null) statusUpcoming else statusDone,
                         style = MaterialTheme.typography.labelLarge,
                         color = if (status.isActive) {
                             if (isDark) Color(0xFF34D399) else Color(0xFF059669)
@@ -600,13 +597,13 @@ fun CountdownCard(status: CountdownStatus, appTheme: GlowTheme) {
                     )
                 } else {
                     Text(
-                        text = "今天没有更多课程了",
+                        text = stringResource(R.string.home_no_more_classes),
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Black
                     )
                     Text(
-                        text = "呼～今天的课全部搞定！开启美好的课后时光吧 🥳",
+                        text = stringResource(R.string.home_all_done),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -766,7 +763,7 @@ fun CourseTimelineItem(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "已完成",
+                                text = stringResource(R.string.home_completed),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = textColor
@@ -780,7 +777,7 @@ fun CourseTimelineItem(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "📝 待办",
+                                text = stringResource(R.string.home_pending_todo),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.Red
@@ -810,7 +807,7 @@ fun CourseTimelineItem(
                     }
                 }
                 Text(
-                    text = "第 $startPeriod-$endPeriod 节",
+                    text = stringResource(R.string.home_period_range, startPeriod, endPeriod),
                     style = MaterialTheme.typography.labelSmall,
                     color = textColor.copy(alpha = 0.6f)
                 )
@@ -831,7 +828,8 @@ data class CountdownStatus(
 private fun computeCountdown(
     todaySlots: List<Triple<CourseWithSchedules, ScheduleSlot, PeriodTime?>>,
     periods: List<PeriodTime>,
-    timeMinutes: Int
+    timeMinutes: Int,
+    context: android.content.Context
 ): CountdownStatus {
     var activeSlot: Triple<CourseWithSchedules, ScheduleSlot, PeriodTime?>? = null
     var nextSlot: Triple<CourseWithSchedules, ScheduleSlot, PeriodTime?>? = null
@@ -865,7 +863,7 @@ private fun computeCountdown(
             endTime = endP?.endTime ?: "",
             classroom = slot.classroom,
             isActive = true,
-            countdownText = "下课倒计时：还剩 $diff 分钟，加油！"
+            countdownText = context.getString(R.string.home_countdown_active, diff)
         )
     } else if (nextSlot != null) {
         val slot = nextSlot.second
@@ -879,7 +877,7 @@ private fun computeCountdown(
             endTime = endP?.endTime ?: "",
             classroom = slot.classroom,
             isActive = false,
-            countdownText = "下堂课准备中：还剩 $diff 分钟上课，别迟到哦 🏃‍♂️"
+            countdownText = context.getString(R.string.home_countdown_upcoming, diff)
         )
     }
 
@@ -895,7 +893,7 @@ private fun computeCountdown(
 
 @Composable
 fun DndWidget(sharedPreferences: android.content.SharedPreferences, appTheme: GlowTheme) {
-    var overrideEndTime by remember { mutableStateOf(sharedPreferences.getLong("dnd_override_end_time", 0)) }
+    var overrideEndTime by remember { mutableLongStateOf(sharedPreferences.getLong("dnd_override_end_time", 0)) }
     val now = System.currentTimeMillis()
     val isOverridden = overrideEndTime > now
     val remainingMins = if (isOverridden) ((overrideEndTime - now) / (60 * 1000)).toInt() else 0
@@ -948,9 +946,9 @@ fun DndWidget(sharedPreferences: android.content.SharedPreferences, appTheme: Gl
                     )
                 }
                 Column {
-                    Text("上课静音自动防护", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.home_dnd_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        text = if (isOverridden) "手动静音延长中: 剩 $remainingMins 分钟" else "静音自动化已启动",
+                        text = if (isOverridden) stringResource(R.string.home_dnd_extending, remainingMins) else stringResource(R.string.home_dnd_active),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -971,7 +969,7 @@ fun DndWidget(sharedPreferences: android.content.SharedPreferences, appTheme: Gl
                 ),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Text("延长1小时", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.home_extend_one_hour), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1010,14 +1008,14 @@ fun TransitAdvisorWidget(
             Text("🐈", fontSize = 28.sp)
             Column {
                 Text(
-                    text = "拾光猫跑课助手 · 外面正在下雨 🌧️",
+                    text = stringResource(R.string.home_transit_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFD97706)
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "下节课「$nextSlotName」在 $nextClassroom，距离上节课 $activeClassroom 较远。外面正在下雨，记得带伞并提早出发哦！",
+                    text = stringResource(R.string.home_transit_message, nextSlotName, nextClassroom, activeClassroom),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                 )
@@ -1043,6 +1041,12 @@ fun SentimentWallWidget(
         GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     }
 
+    val awesomeStr = stringResource(R.string.home_sentiment_awesome)
+    val nailedItStr = stringResource(R.string.home_sentiment_nailed_it)
+    val mindBlownStr = stringResource(R.string.home_sentiment_mind_blown)
+    val runStr = stringResource(R.string.home_sentiment_run)
+    val sleepyStr = stringResource(R.string.home_sentiment_sleepy)
+
     if (selectedEmoji == null) {
         Card(
             modifier = Modifier
@@ -1060,28 +1064,28 @@ fun SentimentWallWidget(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "🎓 课后心情墙",
+                    text = stringResource(R.string.home_sentiment_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "刚刚的「$courseName」上得怎么样？",
+                    text = stringResource(R.string.home_sentiment_question, courseName),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val emojis = listOf(
-                        "🥳" to "太牛了",
-                        "😎" to "拿下",
-                        "🤯" to "学废了",
-                        "😴" to "快逃",
-                        "💤" to "困了"
+                        "🥳" to awesomeStr,
+                        "😎" to nailedItStr,
+                        "🤯" to mindBlownStr,
+                        "😴" to runStr,
+                        "💤" to sleepyStr
                     )
                     emojis.forEach { (emoji, label) ->
                         Column(
@@ -1119,8 +1123,8 @@ fun SentimentWallWidget(
             ) {
                 Text("🐈", fontSize = 24.sp)
                 Column {
-                    Text("心情已同步！", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("你对这节课的心情是 $selectedEmoji。拾光猫会在学期末为你生成大学生存情感报告哦！", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.home_sentiment_synced), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.home_sentiment_report, selectedEmoji!!), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -1140,5 +1144,3 @@ private fun timeStringToMinutes(timeStr: String): Int {
     val minute = parts[1].toIntOrNull() ?: 0
     return hour * 60 + minute
 }
-
-

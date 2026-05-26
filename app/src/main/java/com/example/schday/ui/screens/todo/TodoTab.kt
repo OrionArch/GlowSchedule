@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.example.schday.data.entity.CourseWithSchedules
 import com.example.schday.data.entity.Homework
 import com.example.schday.theme.GlowTheme
+import com.example.schday.R
 import com.example.schday.theme.getContrastingTextColor
 import com.example.schday.theme.glowOrShadow
 import com.example.schday.theme.paperTexture
@@ -57,7 +59,7 @@ fun TodoTab(
 
     // Date picker state
     val calendar = Calendar.getInstance()
-    var selectedDeadlineMillis by remember { mutableStateOf(calendar.timeInMillis) }
+    var selectedDeadlineMillis by remember { mutableLongStateOf(calendar.timeInMillis) }
     var showDatePicker by remember { mutableStateOf(false) }
 
     val uncompletedTasks = remember(homeworkList) { homeworkList.filter { !it.isCompleted } }
@@ -77,7 +79,7 @@ fun TodoTab(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "作业与考试待办",
+            text = stringResource(R.string.todo_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.onBackground
@@ -98,7 +100,7 @@ fun TodoTab(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("快速添加待办", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.todo_quick_add), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -113,7 +115,7 @@ fun TodoTab(
                             contentPadding = PaddingValues(horizontal = 8.dp),
                             shape = MaterialTheme.shapes.small
                         ) {
-                            val cName = selectedCourseIndex?.let { courses.getOrNull(it)?.course?.name } ?: "关联课程"
+                            val cName = selectedCourseIndex?.let { courses.getOrNull(it)?.course?.name } ?: stringResource(R.string.todo_link_course)
                             Text(cName, fontSize = 12.sp, maxLines = 1)
                         }
                         DropdownMenu(
@@ -154,7 +156,7 @@ fun TodoTab(
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
-                        placeholder = { Text("输入任务内容...") },
+                        placeholder = { Text(stringResource(R.string.todo_input_placeholder)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = MaterialTheme.shapes.medium
@@ -177,7 +179,7 @@ fun TodoTab(
                         enabled = title.isNotBlank() && selectedCourseIndex != null,
                         shape = MaterialTheme.shapes.medium
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "添加")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.todo_add))
                     }
                 }
             }
@@ -193,14 +195,14 @@ fun TodoTab(
         ) {
             if (uncompletedTasks.isNotEmpty()) {
                 item {
-                    Text("进行中", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.todo_in_progress), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
 
                 items(uncompletedTasks) { task ->
                     val associatedCourse = courses.find { it.course.id == task.courseId }?.course
                     TodoItemRow(
                         task = task,
-                        courseName = associatedCourse?.name ?: "未知课程",
+                        courseName = associatedCourse?.name ?: stringResource(R.string.todo_unknown_course),
                         courseColorHex = associatedCourse?.colorHex ?: "#CCCCCC",
                         appTheme = appTheme,
                         onCheckedChange = { isChecked ->
@@ -213,14 +215,14 @@ fun TodoTab(
 
             if (completedTasks.isNotEmpty()) {
                 item {
-                    Text("已完成", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                    Text(stringResource(R.string.todo_completed_section), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
                 }
 
                 items(completedTasks) { task ->
                     val associatedCourse = courses.find { it.course.id == task.courseId }?.course
                     TodoItemRow(
                         task = task,
-                        courseName = associatedCourse?.name ?: "未知课程",
+                        courseName = associatedCourse?.name ?: stringResource(R.string.todo_unknown_course),
                         courseColorHex = associatedCourse?.colorHex ?: "#CCCCCC",
                         appTheme = appTheme,
                         onCheckedChange = { isChecked ->
@@ -234,7 +236,7 @@ fun TodoTab(
             if (homeworkList.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                        Text("当前没有任何待办任务！", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.todo_empty_message), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -265,7 +267,6 @@ fun TodoItemRow(
     onDelete: () -> Unit
 ) {
     val context = LocalContext.current
-    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator }
 
     val deadlineDate = Date(task.deadline)
     val todayCalendar = Calendar.getInstance().apply {
@@ -285,11 +286,11 @@ fun TodoItemRow(
     val daysDiff = ((taskCalendar.timeInMillis - todayCalendar.timeInMillis) / (24 * 60 * 60 * 1000)).toInt()
 
     val countdownText = when {
-        task.isCompleted -> "已完成"
-        daysDiff < 0 -> "已过期"
-        daysDiff == 0 -> "今天截止"
-        daysDiff == 1 -> "明天截止"
-        else -> "剩 $daysDiff 天"
+        task.isCompleted -> stringResource(R.string.todo_status_completed)
+        daysDiff < 0 -> stringResource(R.string.todo_status_overdue)
+        daysDiff == 0 -> stringResource(R.string.todo_due_today)
+        daysDiff == 1 -> stringResource(R.string.todo_due_tomorrow)
+        else -> stringResource(R.string.todo_days_remaining, daysDiff)
     }
 
     val countdownColor = when {
@@ -308,7 +309,7 @@ fun TodoItemRow(
 
     // Particle system states
     var isExploding by remember { mutableStateOf(false) }
-    var particleTime by remember { mutableStateOf(0f) }
+    var particleTime by remember { mutableFloatStateOf(0f) }
 
     val particles = remember {
         List(15) {
@@ -388,16 +389,7 @@ fun TodoItemRow(
                             particleTime = 0f
                         }
                         // Trigger Haptic Feedback
-                        try {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
-                            } else {
-                                @Suppress("DEPRECATION")
-                                vibrator.vibrate(30)
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                        com.example.schday.utils.DateUtils.triggerHapticFeedback(context, 30)
                     }
                 )
 
@@ -444,7 +436,7 @@ fun TodoItemRow(
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "删除任务",
+                        contentDescription = stringResource(R.string.todo_delete_task),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }

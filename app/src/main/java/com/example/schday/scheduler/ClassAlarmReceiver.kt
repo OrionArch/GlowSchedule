@@ -11,6 +11,7 @@ import android.media.AudioManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.example.schday.MainActivity
+import com.example.schday.R
 import com.example.schday.data.AppDatabase
 import com.example.schday.data.DataRepository
 import com.example.schday.data.DefaultDataRepository
@@ -26,7 +27,7 @@ class ClassAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        val courseName = intent.getStringExtra("course_name") ?: "课程"
+        val courseName = intent.getStringExtra("course_name") ?: context.getString(R.string.course_default)
         val classroom = intent.getStringExtra("classroom") ?: ""
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val sharedPrefs = context.getSharedPreferences("schday_settings", Context.MODE_PRIVATE)
@@ -36,9 +37,9 @@ class ClassAlarmReceiver : BroadcastReceiver() {
 
         // Create Notification Channel on Oreo+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "课程提醒", NotificationManager.IMPORTANCE_HIGH)
+            val channel = NotificationChannel(channelId, context.getString(R.string.alarm_class_reminder_channel), NotificationManager.IMPORTANCE_HIGH)
             notificationManager.createNotificationChannel(channel)
-            val homeworkChannel = NotificationChannel("homework_reminders", "作业提醒", NotificationManager.IMPORTANCE_HIGH)
+            val homeworkChannel = NotificationChannel("homework_reminders", context.getString(R.string.alarm_homework_reminder_channel), NotificationManager.IMPORTANCE_HIGH)
             notificationManager.createNotificationChannel(homeworkChannel)
         }
 
@@ -49,11 +50,11 @@ class ClassAlarmReceiver : BroadcastReceiver() {
                 val pendingIntent = PendingIntent.getActivity(
                     context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-                
-                val contentText = if (classroom.isNotEmpty()) "即将上课，教室: $classroom" else "课程即将开始，做好准备哦！"
+
+                val contentText = if (classroom.isNotEmpty()) context.getString(R.string.alarm_coming_with_room, classroom) else context.getString(R.string.alarm_coming_no_room)
                 val notification = NotificationCompat.Builder(context, channelId)
                     .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                    .setContentTitle("上课提醒: $courseName")
+                    .setContentTitle(context.getString(R.string.alarm_class_reminder_title, courseName))
                     .setContentText(contentText)
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setContentIntent(pendingIntent)
@@ -133,20 +134,20 @@ class ClassAlarmReceiver : BroadcastReceiver() {
 
                         val summaryText = if (urgentHomework.size == 1) {
                             val hw = urgentHomework[0]
-                            val courseNameStr = courseMap[hw.courseId]?.name ?: "课程"
-                            "您有1项待办作业: [${courseNameStr}] ${hw.title}"
+                            val courseNameStr = courseMap[hw.courseId]?.name ?: context.getString(R.string.course_default)
+                            context.getString(R.string.alarm_single_homework, courseNameStr, hw.title)
                         } else {
-                            "您有 ${urgentHomework.size} 项作业即将在48小时内截止，请及时完成！"
+                            context.getString(R.string.alarm_multi_homework, urgentHomework.size)
                         }
 
-                        val detailText = "以下作业即将在48小时内截止：\n" + urgentHomework.joinToString("\n") { hw ->
-                            val courseNameStr = courseMap[hw.courseId]?.name ?: "课程"
+                        val detailText = context.getString(R.string.alarm_homework_detail_prefix) + urgentHomework.joinToString("\n") { hw ->
+                            val courseNameStr = courseMap[hw.courseId]?.name ?: context.getString(R.string.course_default)
                             "- [${courseNameStr}] ${hw.title}"
                         }
 
                         val notification = NotificationCompat.Builder(context, "homework_reminders")
                             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                            .setContentTitle("作业截止提醒")
+                            .setContentTitle(context.getString(R.string.alarm_homework_deadline_title))
                             .setContentText(summaryText)
                             .setStyle(NotificationCompat.BigTextStyle().bigText(detailText))
                             .setPriority(NotificationCompat.PRIORITY_HIGH)

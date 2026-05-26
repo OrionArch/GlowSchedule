@@ -10,12 +10,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.schday.data.DataRepository
 import com.example.schday.data.entity.Course
 import com.example.schday.data.entity.ScheduleSlot
+import com.example.schday.R
 import com.example.schday.parser.ExcelParser
 import com.example.schday.theme.GlowTheme
 import com.example.schday.theme.MorandiColors
@@ -52,7 +54,10 @@ fun ImportCoursesScreen(
     val coroutineScope = rememberCoroutineScope()
     val currentSemester by repository.getCurrentSemester().collectAsStateWithLifecycle(initialValue = null)
 
-    var selectedTab by remember { mutableStateOf(0) } // 0 = AI Screenshot, 1 = CSV
+    // Pre-resolve strings for Toast/callback usage
+    val importCompleteStr = stringResource(R.string.import_complete)
+
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = AI Screenshot, 1 = CSV
     val pendingConflicts = remember { mutableStateListOf<ImportConflict>() }
 
     // Helper to check for schedule clashes and process import
@@ -103,11 +108,11 @@ fun ImportCoursesScreen(
                 if (conflicts.isNotEmpty()) {
                     pendingConflicts.addAll(conflicts)
                 } else {
-                    Toast.makeText(context, "成功导入 ${parsedList.size} 门课程！", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.import_success, parsedList.size), Toast.LENGTH_SHORT).show()
                     onBack()
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "解析或检查冲突失败: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.import_parse_or_clash_fail, e.message), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -124,7 +129,7 @@ fun ImportCoursesScreen(
                         processImport(parsed)
                     }
                 } catch (e: Exception) {
-                    Toast.makeText(context, "导入失败: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.import_fail, e.message), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -142,7 +147,7 @@ fun ImportCoursesScreen(
             },
             title = {
                 Text(
-                    text = "课程日程冲突",
+                    text = stringResource(R.string.import_clash_title),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -155,14 +160,14 @@ fun ImportCoursesScreen(
                             repository.saveCourseWithSlots(currentConflict.newCourse, currentConflict.newSlots)
                             pendingConflicts.removeAt(0)
                             if (pendingConflicts.isEmpty()) {
-                                Toast.makeText(context, "导入完成！", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, importCompleteStr, Toast.LENGTH_SHORT).show()
                                 onBack()
                             }
                         }
                     },
                     shape = RoundedCornerShape(50)
                 ) {
-                    Text("保留两者", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.import_keep_both), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -174,7 +179,7 @@ fun ImportCoursesScreen(
                             repository.saveCourseWithSlots(currentConflict.newCourse, currentConflict.newSlots)
                             pendingConflicts.removeAt(0)
                             if (pendingConflicts.isEmpty()) {
-                                Toast.makeText(context, "导入完成！", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, importCompleteStr, Toast.LENGTH_SHORT).show()
                                 onBack()
                             }
                         }
@@ -185,7 +190,7 @@ fun ImportCoursesScreen(
                     ),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
                 ) {
-                    Text("覆盖已有", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.import_overwrite), fontWeight = FontWeight.Bold)
                 }
             },
             neutralButton = {
@@ -193,12 +198,12 @@ fun ImportCoursesScreen(
                     onClick = {
                         pendingConflicts.removeAt(0)
                         if (pendingConflicts.isEmpty()) {
-                            Toast.makeText(context, "导入完成！", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, importCompleteStr, Toast.LENGTH_SHORT).show()
                             onBack()
                         }
                     }
                 ) {
-                    Text("跳过此门")
+                    Text(stringResource(R.string.import_skip))
                 }
             }
         ) {
@@ -206,7 +211,7 @@ fun ImportCoursesScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "您正在导入的课程与已有课程存在时间重叠：",
+                    text = stringResource(R.string.import_clash_overlap_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -215,11 +220,11 @@ fun ImportCoursesScreen(
                 val clash = currentConflict.clashingSlots.firstOrNull()
                 if (clash != null) {
                     val (newSlot, existingSlot) = clash
-                    val dayName = DateUtils.getDayName(newSlot.dayOfWeek)
+                    val dayName = DateUtils.getDayName(context, newSlot.dayOfWeek)
                     val overlapWeeks = DateUtils.parseActiveWeeks(newSlot.activeWeeks)
                         .intersect(DateUtils.parseActiveWeeks(existingSlot.activeWeeks).toSet())
                         .joinToString(", ")
-                    
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -232,13 +237,13 @@ fun ImportCoursesScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "冲突时间：$dayName 第 ${newSlot.startPeriod}-${newSlot.endPeriod} 节",
+                                text = stringResource(R.string.import_clash_time, dayName, newSlot.startPeriod, newSlot.endPeriod),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.error
                             )
                             Text(
-                                text = "重叠周数：第 $overlapWeeks 周",
+                                text = stringResource(R.string.import_clash_weeks, overlapWeeks),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -258,14 +263,14 @@ fun ImportCoursesScreen(
                         modifier = Modifier.padding(12.dp)
                     ) {
                         Text(
-                            text = "已有课程: ${currentConflict.existingCourse.name}",
+                            text = stringResource(R.string.import_existing_course, currentConflict.existingCourse.name),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         if (currentConflict.existingCourse.teacher.isNotBlank()) {
                             Text(
-                                text = "教师: ${currentConflict.existingCourse.teacher}",
+                                text = stringResource(R.string.import_teacher_label, currentConflict.existingCourse.teacher),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -273,7 +278,7 @@ fun ImportCoursesScreen(
                         val existingSlot = currentConflict.existingSlots.firstOrNull()
                         if (existingSlot != null) {
                             Text(
-                                text = "教室: ${existingSlot.classroom}",
+                                text = stringResource(R.string.import_classroom_label, existingSlot.classroom),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -293,14 +298,14 @@ fun ImportCoursesScreen(
                         modifier = Modifier.padding(12.dp)
                     ) {
                         Text(
-                            text = "待导入课程: ${currentConflict.newCourse.name}",
+                            text = stringResource(R.string.import_new_course, currentConflict.newCourse.name),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         if (currentConflict.newCourse.teacher.isNotBlank()) {
                             Text(
-                                text = "教师: ${currentConflict.newCourse.teacher}",
+                                text = stringResource(R.string.import_teacher_label, currentConflict.newCourse.teacher),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -308,7 +313,7 @@ fun ImportCoursesScreen(
                         val newSlot = currentConflict.newSlots.firstOrNull()
                         if (newSlot != null) {
                             Text(
-                                text = "教室: ${newSlot.classroom}",
+                                text = stringResource(R.string.import_classroom_label, newSlot.classroom),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -322,10 +327,10 @@ fun ImportCoursesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("导入课程表", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.import_screen_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -337,16 +342,16 @@ fun ImportCoursesScreen(
                 .padding(innerPadding)
         ) {
             // Tab Selection Row
-            TabRow(selectedTabIndex = selectedTab) {
+            SecondaryTabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("AI截图", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                    text = { Text(stringResource(R.string.import_tab_ai), fontWeight = FontWeight.Bold, fontSize = 13.sp) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("CSV表格", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                    text = { Text(stringResource(R.string.import_tab_csv), fontWeight = FontWeight.Bold, fontSize = 13.sp) }
                 )
             }
 
@@ -390,7 +395,7 @@ fun ImportCoursesScreen(
                                     }
                                     processImport(parsedList)
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "解析 AI 数据失败: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, context.getString(R.string.import_ai_parse_fail, e.message), Toast.LENGTH_LONG).show()
                                 }
                             }
                         }
@@ -417,13 +422,10 @@ fun CsvImportPanel(hasSemester: Boolean, appTheme: GlowTheme, onPickFile: () -> 
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("📊 CSV 课程表导入", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.import_csv_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "您可以使用 Excel 创建课表，保存为 CSV 格式后导入。模板格式要求如下：\n" +
-                    "每行代表一个上课时段，逗号分隔，列顺序为：\n" +
-                    "课程名称, 任课教师, 上课教室, 星期几 (1-7), 开始节次 (1-12), 结束节次 (1-12), 逗号分隔的周数...\n" +
-                    "例: 高等数学, 张教授, 教三302, 1, 1, 2, 1,2,3,4,5,6,7,8",
+            text = stringResource(R.string.import_csv_instructions),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -434,11 +436,11 @@ fun CsvImportPanel(hasSemester: Boolean, appTheme: GlowTheme, onPickFile: () -> 
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth().height(48.dp)
         ) {
-            Text("选择 CSV 文件导入")
+            Text(stringResource(R.string.import_csv_pick))
         }
         if (!hasSemester) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text("请先去设置中创建当前活动的学期", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.create_semester_settings_hint), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -452,20 +454,7 @@ fun AiScreenshotImportPanel(
     onImport: () -> Unit
 ) {
     val context = LocalContext.current
-    val promptText = """
-        你是一个专业的课表数据提取 AI。请仔细分析我上传的课表截图，把其中的课程名称、老师、教室、上课星期（1-7，1代表周一，7代表周日）、开始/结束节次（1-12）、以及上课周数等提取成标准的 JSON 数组格式并直接输出（不要带多余的解释，只需要 JSON 格式）。格式示例如下：
-        [
-          {
-            "name": "高等数学",
-            "teacher": "李教授",
-            "classroom": "教三302",
-            "day": 1,
-            "start": 3,
-            "end": 4,
-            "weeks": "1,2,3,4,5,6,7,8"
-          }
-        ]
-    """.trimIndent()
+    val promptText = stringResource(R.string.import_ai_prompt_text)
 
     val borderStroke = when (appTheme) {
         GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
@@ -482,11 +471,11 @@ fun AiScreenshotImportPanel(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            Text("📷 AI 截图智能提取", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.import_ai_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
         item {
             Text(
-                text = "您可以对任何其他软件或网页上的课表进行截图。复制下方精心定制 of AI 提示词，并连同截图一起发送给多模态 AI（如 ChatGPT、Claude、Gemini），AI 识别后会将课表转换为 JSON 格式，您将其粘贴在下方即可快速导入！",
+                text = stringResource(R.string.import_ai_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -504,7 +493,7 @@ fun AiScreenshotImportPanel(
                     modifier = Modifier.padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("💡 多模态 AI 提示词 (可直接复制):", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.import_ai_prompt_label), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Text(
                         text = promptText,
                         style = MaterialTheme.typography.bodySmall,
@@ -517,12 +506,12 @@ fun AiScreenshotImportPanel(
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             val clip = android.content.ClipData.newPlainText("AI Prompt", promptText)
                             clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "提示词已复制到剪贴板，请去发送给多模态 AI 吧！", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.import_ai_copied), Toast.LENGTH_SHORT).show()
                         },
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("复制 AI 提示词", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.import_copy_prompt), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -532,8 +521,8 @@ fun AiScreenshotImportPanel(
                 value = jsonText,
                 onValueChange = onJsonChange,
                 modifier = Modifier.fillMaxWidth().height(180.dp),
-                label = { Text("粘贴 AI 输出的 JSON 代码块") },
-                placeholder = { Text("[\n  {\n    \"name\": \"高等数学\",\n    ...\n  }\n]") },
+                label = { Text(stringResource(R.string.import_json_label)) },
+                placeholder = { Text(stringResource(R.string.import_json_placeholder)) },
                 shape = MaterialTheme.shapes.medium
             )
         }
@@ -544,11 +533,11 @@ fun AiScreenshotImportPanel(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
-                Text("开始解析并一键导入", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.import_start_parse), fontWeight = FontWeight.Bold)
             }
             if (!hasSemester) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("请先去设置中创建当前活动的学期", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.create_semester_settings_hint), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
             }
         }
     }

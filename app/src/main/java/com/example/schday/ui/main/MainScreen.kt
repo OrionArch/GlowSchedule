@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,6 +29,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
 import com.example.schday.AddEditCourse
 import com.example.schday.ImportCourses
+import com.example.schday.R
 import com.example.schday.data.DataRepository
 import com.example.schday.parser.BackupRestore
 import com.example.schday.parser.GlowCodeManager
@@ -56,6 +59,10 @@ fun MainScreen(
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val homeworkList by viewModel.allHomework.collectAsStateWithLifecycle()
     val selectedWeek by viewModel.selectedWeek.collectAsStateWithLifecycle()
+
+    // Resolve strings for non-Composable contexts
+    val importSuccessStr = stringResource(R.string.import_success)
+    val createSemesterFirstStr = stringResource(R.string.create_semester_first)
 
     // Clipboard Glow Code scanning logic
     val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager }
@@ -98,6 +105,11 @@ fun MainScreen(
         }
     }
 
+    val navToday = stringResource(R.string.nav_today)
+    val navTimetable = stringResource(R.string.nav_timetable)
+    val navTodo = stringResource(R.string.nav_todo)
+    val navSettings = stringResource(R.string.nav_settings)
+
     Scaffold(
         modifier = Modifier.fillMaxSize().hudBackground(appTheme),
         bottomBar = {
@@ -120,10 +132,10 @@ fun MainScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val tabs = listOf(
-                        Triple(0, Icons.Default.Home, "今日"),
-                        Triple(1, Icons.Default.DateRange, "课表"),
-                        Triple(2, Icons.Default.List, "待办"),
-                        Triple(3, Icons.Default.Settings, "设置")
+                        Triple(0, Icons.Default.Home, navToday),
+                        Triple(1, Icons.Default.DateRange, navTimetable),
+                        Triple(2, Icons.AutoMirrored.Filled.List, navTodo),
+                        Triple(3, Icons.Default.Settings, navSettings)
                     )
                     tabs.forEach { (index, icon, label) ->
                         val selected = currentTab == index
@@ -234,14 +246,7 @@ fun MainScreen(
                             }
                         },
                         onExportJson = {
-                            var json = ""
-                            // Synchronously running export by blocking briefly or launching in a runBlocking manner isn't recommended, 
-                            // but since exportToJson is suspendable, we can obtain it safely by launching or using a state.
-                            // To keep it clean, we block with runBlocking or use a callback. Let's run blocking since it's local db.
-                            kotlinx.coroutines.runBlocking {
-                                json = BackupRestore.exportToJson(repository)
-                            }
-                            json
+                            BackupRestore.exportToJson(repository)
                         },
                         onImportClick = { onItemClick(ImportCourses) },
                         onClearData = { viewModel.clearAllData() },
@@ -276,14 +281,14 @@ fun MainScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "🐈 发现拾光分享口令",
+                        text = stringResource(R.string.glow_code_discovered),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "检测到剪贴板中含有班级共享课表：",
+                        text = stringResource(R.string.glow_code_clipboard_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
@@ -341,7 +346,7 @@ fun MainScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("忽略")
+                            Text(stringResource(R.string.ignore))
                         }
 
                         Button(
@@ -349,9 +354,9 @@ fun MainScreen(
                                 val semId = currentSemester?.id
                                 if (semId != null) {
                                     viewModel.importGlowCode(data, semId)
-                                    Toast.makeText(context, "成功导入 ${data.courses.size} 门课程！", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, importSuccessStr.format(data.courses.size), Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(context, "请先去设置页面创建一个学期！", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, createSemesterFirstStr, Toast.LENGTH_LONG).show()
                                 }
                                 processedGlowCode = pendingGlowCode ?: ""
                                 glowCodeData = null
@@ -359,7 +364,7 @@ fun MainScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("导入课表")
+                            Text(stringResource(R.string.import_schedule))
                         }
                     }
                 }
