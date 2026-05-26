@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
 
     val database = AppDatabase.getDatabase(applicationContext)
-    val repository = DefaultDataRepository(database)
+    val repository = DefaultDataRepository(database, applicationContext)
     com.example.schday.scheduler.AlarmScheduler.scheduleHomeworkReminderAlarm(applicationContext)
 
     enableEdgeToEdge()

@@ -52,23 +52,24 @@ app/src/main/java/.../
 
 ## Git Branching Strategy
 
-Trunk-Based Development with short-lived release branches (no permanent `develop` branch).
+GitFlow with `develop` as the integration branch.
 
-**Long-lived branches**: `main` only — always buildable and testable.
+**Long-lived branches**: `main` (production-ready) and `develop` (integration).
 
-| Type | Naming | Lifetime | Example |
-|---|---|---|---|
-| Feature | `feature/<name>` | 1-3 days, merge & delete | `feature/week-view` |
-| Bugfix | `fix/<name>` | Hours, merge & delete | `fix/date-picker-crash` |
-| Chore | `chore/<name>` | Short, merge & delete | `chore/upgrade-compose` |
-| Release | `release/v<semver>` | During stabilization, delete after deploy | `release/v1.1.0` |
-| Hotfix | `hotfix/v<semver>` | Emergency, delete after deploy | `hotfix/v1.0.1` |
+| Type | Naming | Target | Lifetime | Example |
+|---|---|---|---|---|
+| Feature | `feature/<name>` | `develop` | 1-3 days, merge & delete | `feature/week-view` |
+| Bugfix | `fix/<name>` | `develop` | Hours, merge & delete | `fix/date-picker-crash` |
+| Chore | `chore/<name>` | `develop` | Short, merge & delete | `chore/upgrade-compose` |
+| Release | `release/v<semver>` | `main` | During stabilization, delete after deploy | `release/v1.1.0` |
+| Hotfix | `hotfix/v<semver>` | `main` + `develop` | Emergency, delete after deploy | `hotfix/v1.0.1` |
 
 **Rules**:
-- All work on `main` goes through PR (squash merge)
+- All new features branch from and merge into `develop` via PR (code review on GitHub)
+- `develop` → `main` merges require PR review on GitHub
 - Feature branches live max 2-3 days; split longer work into smaller pieces
-- Release branches are cut from `main`, tagged, and deleted after production deploy
-- Hotfixes: fix on `main` first, cherry-pick to release branch if one exists
+- Release branches are cut from `develop`, merged into `main`, tagged, and deleted after deploy
+- Hotfixes: fix on `main` first via PR, then merge `main` back into `develop`
 - Version tags: `v<MAJOR>.<MINOR>.<PATCH>` (Semantic Versioning)
 - Commit messages: Conventional Commits (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`)
 

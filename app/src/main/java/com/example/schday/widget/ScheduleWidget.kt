@@ -24,7 +24,14 @@ import com.example.schday.data.entity.ScheduleSlot
 import com.example.schday.data.entity.Semester
 import com.example.schday.utils.DateUtils
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import androidx.glance.appwidget.updateAll
 import java.util.Calendar
+
+import android.util.Log
+import androidx.glance.text.FontWeight
 
 class ScheduleWidget : GlanceAppWidget() {
 
@@ -35,6 +42,8 @@ class ScheduleWidget : GlanceAppWidget() {
         val semester = repository.getCurrentSemester().first()
         val courses = semester?.let { repository.getCoursesBySemester(it.id).first() } ?: emptyList()
         val periods = repository.getAllPeriodTimes().first()
+
+        Log.d("ScheduleWidget", "provideGlance: semester=${semester?.name}, coursesCount=${courses.size}, periodsCount=${periods.size}")
 
         provideContent {
             GlanceTheme {
@@ -80,7 +89,7 @@ class ScheduleWidget : GlanceAppWidget() {
                     .background(ImageProvider(com.example.schday.R.drawable.widget_glass_background)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("暂无当前学期信息", style = TextStyle(color = GlanceTheme.colors.onBackground))
+                Text("暂无当前学期信息", style = TextStyle(color = GlanceTheme.colors.onBackground, fontSize = 12.sp))
             }
             return
         }
@@ -88,195 +97,212 @@ class ScheduleWidget : GlanceAppWidget() {
         val currentWeek = DateUtils.getCurrentWeek(semester.startDate, semester.totalWeeks)
         val dayOfWeek = DateUtils.getDayOfWeek()
 
+        Log.d("ScheduleWidget", "WidgetContent: currentWeek=$currentWeek, dayOfWeek=$dayOfWeek")
+
         val todaySlots = courses.flatMap { c ->
             c.slots.filter { s ->
-                s.dayOfWeek == dayOfWeek && DateUtils.isWeekActive(s.activeWeeks, currentWeek)
+                val dayMatch = s.dayOfWeek == dayOfWeek
+                val weekActive = DateUtils.isWeekActive(s.activeWeeks, currentWeek)
+                Log.d("ScheduleWidget", "Checking course '${c.course.name}' slot dayOfWeek=${s.dayOfWeek} (match=$dayMatch), activeWeeks='${s.activeWeeks}' (active=$weekActive)")
+                dayMatch && weekActive
             }.map { s ->
                 val p = periods.find { it.periodNumber == s.startPeriod }
                 Triple(c, s, p)
             }
         }.sortedBy { it.second.startPeriod }
 
+        Log.d("ScheduleWidget", "WidgetContent: todaySlotsCount=${todaySlots.size}")
+
+        if (todaySlots.isEmpty()) {
+            Box(
+                modifier = GlanceModifier.fillMaxSize()
+                    .background(ImageProvider(com.example.schday.R.drawable.widget_glass_background))
+                    .padding(8.dp)
+            ) {
+                Row(
+                    modifier = GlanceModifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = GlanceModifier
+                            .width(4.dp)
+                            .fillMaxHeight()
+                            .background(ImageProvider(com.example.schday.R.drawable.card_slate_background))
+                    ) {}
+                    Spacer(modifier = GlanceModifier.width(8.dp))
+                    Column(
+                        modifier = GlanceModifier.fillMaxHeight(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "今日无课",
+                            style = TextStyle(
+                                color = GlanceTheme.colors.primary,
+                                fontWeight = androidx.glance.text.FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        )
+                        Spacer(modifier = GlanceModifier.height(2.dp))
+                        Text(
+                            text = "享受美好的一天吧！",
+                            style = TextStyle(
+                                color = GlanceTheme.colors.secondary,
+                                fontSize = 10.sp
+                            )
+                        )
+                    }
+                }
+            }
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        var activeIndex = -1
+        val processedSlots = todaySlots.mapIndexed { index, (courseWithSchedules, slot, periodTime) ->
+            val startStr = periodTime?.startTime ?: "00:00"
+            val endStr = periodTime?.endTime ?: "00:00"
+            val startMillis = parseTimeStringToday(startStr)
+            val endMillis = parseTimeStringToday(endStr)
+            
+            val isActive = now in startMillis..endMillis
+            val isUpcoming = startMillis > now
+            
+            if (isActive && activeIndex == -1) {
+                activeIndex = index
+            }
+            
+            WidgetSlotItem(
+                courseWithSchedules = courseWithSchedules,
+                slot = slot,
+                periodTime = periodTime,
+                isActive = isActive,
+                isUpcoming = isUpcoming,
+                startMillis = startMillis,
+                endMillis = endMillis
+            )
+        }
+
+        val mainItem = if (activeIndex != -1) {
+            processedSlots[activeIndex]
+        } else {
+            processedSlots.firstOrNull { it.isUpcoming } ?: processedSlots.first()
+        }
+
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(ImageProvider(com.example.schday.R.drawable.widget_glass_background))
+                .padding(8.dp)
         ) {
-            Column(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .padding(14.dp)
+            Row(
+                modifier = GlanceModifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Header
-                Row(
-                    modifier = GlanceModifier.fillMaxWidth(),
+                val barDrawable = if (mainItem.isActive) {
+                    com.example.schday.R.drawable.card_sage_background
+                } else {
+                    com.example.schday.R.drawable.card_slate_background
+                }
+                Box(
+                    modifier = GlanceModifier
+                        .width(4.dp)
+                        .fillMaxHeight()
+                        .background(ImageProvider(barDrawable))
+                ) {}
+                
+                Spacer(modifier = GlanceModifier.width(8.dp))
+                
+                Column(
+                    modifier = GlanceModifier.fillMaxHeight().defaultWeight(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val stateText = if (mainItem.isActive) "进行中" else "下一节"
+                        val stateColor = if (mainItem.isActive) {
+                            GlanceTheme.colors.primary
+                        } else {
+                            GlanceTheme.colors.secondary
+                        }
+                        Text(
+                            text = stateText,
+                            style = TextStyle(
+                                color = stateColor,
+                                fontWeight = androidx.glance.text.FontWeight.Bold,
+                                fontSize = 10.sp
+                            )
+                        )
+                        Spacer(modifier = GlanceModifier.width(6.dp))
+                        Text(
+                            text = "${mainItem.periodTime?.startTime ?: ""} - ${mainItem.periodTime?.endTime ?: ""}",
+                            style = TextStyle(
+                                color = GlanceTheme.colors.secondary,
+                                fontSize = 10.sp
+                            )
+                        )
+                        Spacer(modifier = GlanceModifier.defaultWeight())
+                        Text(
+                            text = "W$currentWeek",
+                            style = TextStyle(
+                                color = GlanceTheme.colors.secondary,
+                                fontSize = 9.sp
+                            )
+                        )
+                    }
+                    
+                    Spacer(modifier = GlanceModifier.height(2.dp))
+                    
                     Text(
-                        text = "今日课表",
+                        text = mainItem.courseWithSchedules.course.name,
                         style = TextStyle(
-                            color = GlanceTheme.colors.primary,
+                            color = GlanceTheme.colors.onBackground,
                             fontWeight = androidx.glance.text.FontWeight.Bold,
                             fontSize = 13.sp
-                        )
+                        ),
+                        maxLines = 1
                     )
-                    Spacer(modifier = GlanceModifier.defaultWeight())
-                    Text(
-                        text = "第 $currentWeek 周",
-                        style = TextStyle(
-                            color = GlanceTheme.colors.secondary,
-                            fontSize = 11.sp
-                        )
-                    )
-                }
-                Spacer(modifier = GlanceModifier.height(8.dp))
-
-                if (todaySlots.isEmpty()) {
-                    Box(
-                        modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("今天没有课程哦！", style = TextStyle(color = GlanceTheme.colors.onBackground))
-                    }
-                } else {
-                    val now = System.currentTimeMillis()
-                    var activeIndex = -1
-                    val processedSlots = todaySlots.mapIndexed { index, (courseWithSchedules, slot, periodTime) ->
-                        val startStr = periodTime?.startTime ?: "00:00"
-                        val endStr = periodTime?.endTime ?: "00:00"
-                        val startMillis = parseTimeStringToday(startStr)
-                        val endMillis = parseTimeStringToday(endStr)
+                    
+                    Spacer(modifier = GlanceModifier.height(2.dp))
+                    
+                    if (mainItem.isActive) {
+                        val duration = mainItem.endMillis - mainItem.startMillis
+                        val elapsed = now - mainItem.startMillis
+                        val progress = if (duration > 0) elapsed.toFloat() / duration.toFloat() else 0f
+                        val clampedProgress = progress.coerceIn(0f, 1f)
                         
-                        val isActive = now in startMillis..endMillis
-                        val isUpcoming = startMillis > now
-                        
-                        if (isActive && activeIndex == -1) {
-                            activeIndex = index
-                        }
-                        
-                        WidgetSlotItem(
-                            courseWithSchedules = courseWithSchedules,
-                            slot = slot,
-                            periodTime = periodTime,
-                            isActive = isActive,
-                            isUpcoming = isUpcoming,
-                            startMillis = startMillis,
-                            endMillis = endMillis
-                        )
-                    }
-
-                    // Select the main item to display
-                    val mainItem = if (activeIndex != -1) {
-                        processedSlots[activeIndex]
-                    } else {
-                        // Find the first upcoming class, or fall back to the first class of the day
-                        processedSlots.firstOrNull { it.isUpcoming } ?: processedSlots.first()
-                    }
-
-                    // Main card showing Active or Next class
-                    Column(
-                        modifier = GlanceModifier
-                            .fillMaxWidth()
-                            .background(ImageProvider(com.example.schday.R.drawable.card_sage_background))
-                            .padding(12.dp)
-                    ) {
                         Row(
                             modifier = GlanceModifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (mainItem.isActive) "进行中" else "下一节",
+                                text = "教室: ${mainItem.slot.classroom}",
                                 style = TextStyle(
-                                    color = GlanceTheme.colors.onPrimaryContainer,
-                                    fontWeight = androidx.glance.text.FontWeight.Bold,
+                                    color = GlanceTheme.colors.secondary,
                                     fontSize = 10.sp
                                 )
                             )
-                            Spacer(modifier = GlanceModifier.defaultWeight())
-                            Text(
-                                text = "${mainItem.periodTime?.startTime ?: ""} - ${mainItem.periodTime?.endTime ?: ""}",
-                                style = TextStyle(
-                                    color = GlanceTheme.colors.onPrimaryContainer,
-                                    fontSize = 11.sp
-                                )
-                            )
-                        }
-                        Spacer(modifier = GlanceModifier.height(4.dp))
-                        Text(
-                            text = mainItem.courseWithSchedules.course.name,
-                            style = TextStyle(
-                                color = GlanceTheme.colors.onPrimaryContainer,
-                                fontWeight = androidx.glance.text.FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                        )
-                        Row(
-                            modifier = GlanceModifier.fillMaxWidth().padding(top = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "教室: ${mainItem.slot.classroom}",
-                                style = TextStyle(
-                                    color = GlanceTheme.colors.onPrimaryContainer,
-                                    fontSize = 11.sp
-                                )
-                            )
-                            if (mainItem.courseWithSchedules.course.teacher.isNotBlank()) {
-                                Spacer(modifier = GlanceModifier.width(8.dp))
-                                Text(
-                                    text = "教师: ${mainItem.courseWithSchedules.course.teacher}",
-                                    style = TextStyle(
-                                        color = GlanceTheme.colors.onPrimaryContainer,
-                                        fontSize = 11.sp
-                                    )
-                                )
-                            }
-                        }
-
-                        // Progress Indicator if class is currently running
-                        if (mainItem.isActive) {
-                            val duration = mainItem.endMillis - mainItem.startMillis
-                            val elapsed = now - mainItem.startMillis
-                            val progress = if (duration > 0) elapsed.toFloat() / duration.toFloat() else 0f
-                            val clampedProgress = progress.coerceIn(0f, 1f)
-                            
-                            Spacer(modifier = GlanceModifier.height(8.dp))
+                            Spacer(modifier = GlanceModifier.width(8.dp))
                             LinearProgressIndicator(
                                 progress = clampedProgress,
-                                modifier = GlanceModifier.fillMaxWidth()
+                                modifier = GlanceModifier.defaultWeight().height(3.dp)
                             )
                         }
-                    }
-
-                    // Display the subsequently upcoming class in a secondary card if available
-                    val nextItems = processedSlots.filter { it != mainItem && it.startMillis > now }
-                    if (nextItems.isNotEmpty()) {
-                        Spacer(modifier = GlanceModifier.height(8.dp))
-                        val nextOne = nextItems.first()
-                        Row(
-                            modifier = GlanceModifier
-                                .fillMaxWidth()
-                                .background(ImageProvider(com.example.schday.R.drawable.card_slate_background))
-                                .padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "随后: ${nextOne.courseWithSchedules.course.name}",
-                                style = TextStyle(
-                                    color = GlanceTheme.colors.onTertiaryContainer,
-                                    fontWeight = androidx.glance.text.FontWeight.Bold,
-                                    fontSize = 11.sp
-                                )
-                            )
-                            Spacer(modifier = GlanceModifier.defaultWeight())
-                            Text(
-                                text = "${nextOne.periodTime?.startTime ?: ""} @ ${nextOne.slot.classroom}",
-                                style = TextStyle(
-                                    color = GlanceTheme.colors.onTertiaryContainer,
-                                    fontSize = 11.sp
-                                )
-                            )
+                    } else {
+                        val teacherStr = if (mainItem.courseWithSchedules.course.teacher.isNotBlank()) {
+                            " | 教师: ${mainItem.courseWithSchedules.course.teacher}"
+                        } else {
+                            ""
                         }
+                        Text(
+                            text = "教室: ${mainItem.slot.classroom}$teacherStr",
+                            style = TextStyle(
+                                color = GlanceTheme.colors.secondary,
+                                fontSize = 10.sp
+                            ),
+                            maxLines = 1
+                        )
                     }
                 }
             }
@@ -286,4 +312,17 @@ class ScheduleWidget : GlanceAppWidget() {
 
 class ScheduleWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = ScheduleWidget()
+
+    companion object {
+        fun updateWidget(context: Context) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    ScheduleWidget().updateAll(context)
+                    Log.d("ScheduleWidget", "Widget updateAll triggered successfully")
+                } catch (e: Exception) {
+                    Log.e("ScheduleWidget", "Failed to update widget", e)
+                }
+            }
+        }
+    }
 }
