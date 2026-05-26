@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Translucent Charcoal for Dark Theme Widget Background (90% opacity) -->
+    <color name="widget_bg">#E61B1C19</color>
+    <!-- Muted border color (25% opacity Outline) -->
+    <color name="widget_stroke">#408E9289</color>
+    
+    <!-- Morandi Card Backgrounds (translucent dark versions) -->
+    <color name="morandi_sage_bg">#273422</color>
+    <color name="morandi_sage_text">#D8E7CD</color>
+    <color name="morandi_slate_bg">#203240</color>
+    <color name="morandi_slate_text">#D2E5F8</color>
+</resources>

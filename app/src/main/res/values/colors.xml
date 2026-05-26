@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Translucent Warm Cream for Light Theme Widget Background (90% opacity) -->
+    <color name="widget_bg">#E6FBF9F4</color>
+    <!-- Muted border color (25% opacity Outline) -->
+    <color name="widget_stroke">#40757870</color>
+    
+    <!-- Morandi Card Backgrounds (translucent) -->
+    <color name="morandi_sage_bg">#D5ECD4</color>
+    <color name="morandi_sage_text">#2C5627</color>
+    <color name="morandi_slate_bg">#C7E2F7</color>
+    <color name="morandi_slate_text">#144D6C</color>
+</resources>
