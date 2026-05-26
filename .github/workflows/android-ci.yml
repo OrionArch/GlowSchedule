@@ -2,9 +2,9 @@ name: Android CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: android-ci-${{ github.ref }}
@@ -32,6 +32,9 @@ jobs:
 
       - name: Grant execute permission
         run: chmod +x gradlew
+
+      - name: Run ktlint Check
+        run: ./gradlew ktlintCheck
 
       - name: Run Lint
         run: ./gradlew lintDebug
