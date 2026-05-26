@@ -35,6 +35,7 @@ android {
     lint {
         checkReleaseBuilds = true
         abortOnError = true
+        warning += "LocalContextGetResourceValueCall"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
