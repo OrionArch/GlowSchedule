@@ -1,9 +1,12 @@
 package com.example.schday.ui.screens.edit
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -28,8 +33,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.schday.data.DataRepository
 import com.example.schday.data.entity.Course
 import com.example.schday.data.entity.ScheduleSlot
+import com.example.schday.theme.GlowTheme
 import com.example.schday.theme.MorandiColors
 import com.example.schday.theme.getContrastingTextColor
+import com.example.schday.theme.paperTexture
 import com.example.schday.utils.DateUtils
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -48,9 +55,16 @@ data class SlotInput(
 fun AddEditCourseScreen(
     repository: DataRepository,
     courseId: Int?,
+    appTheme: GlowTheme,
     onBack: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val borderStroke = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    }
     val currentSemester by repository.getCurrentSemester().collectAsStateWithLifecycle(initialValue = null)
 
     // Load course if editing
@@ -153,7 +167,11 @@ fun AddEditCourseScreen(
 
             // 1. Basic Info
             Card(
-                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .paperTexture(appTheme),
+                shape = MaterialTheme.shapes.large,
+                border = borderStroke,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
             ) {
                 Column(
@@ -167,7 +185,7 @@ fun AddEditCourseScreen(
                         onValueChange = { name = it },
                         label = { Text("课程名称 *") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     )
 
                     OutlinedTextField(
@@ -175,14 +193,18 @@ fun AddEditCourseScreen(
                         onValueChange = { teacher = it },
                         label = { Text("任课老师") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     )
                 }
             }
 
             // 2. Color Selection
             Card(
-                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .paperTexture(appTheme),
+                shape = MaterialTheme.shapes.large,
+                border = borderStroke,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
             ) {
                 Column(
@@ -232,9 +254,12 @@ fun AddEditCourseScreen(
 
             slots.forEachIndexed { index, slot ->
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .paperTexture(appTheme),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    border = borderStroke
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -273,73 +298,69 @@ fun AddEditCourseScreen(
                                         containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                                         contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                     ),
-                                    shape = RoundedCornerShape(8.dp)
+                                    shape = MaterialTheme.shapes.small
                                 ) {
                                     Text(DateUtils.getDayName(day), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
 
-                        // Period Selectors
+                        // Inline Horizontal Period Wheel
+                        Text("上课节次区间 (横滑选择起点与终点)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Start Period
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("开始节次", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                var expanded by remember { mutableStateOf(false) }
-                                Box(modifier = Modifier.fillMaxWidth()) {
-                                    OutlinedButton(
-                                        onClick = { expanded = true },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text("第 ${slot.startPeriod} 节")
-                                    }
-                                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                        (1..12).forEach { p ->
-                                            DropdownMenuItem(
-                                                text = { Text("第 $p 节") },
-                                                onClick = {
-                                                    slots = slots.mapIndexed { i, s ->
-                                                        if (i == index) {
-                                                            val end = if (s.endPeriod < p) p else s.endPeriod
-                                                            s.copy(startPeriod = p, endPeriod = end)
-                                                        } else s
-                                                    }
-                                                    expanded = false
-                                                }
-                                            )
-                                        }
-                                    }
+                            (1..12).forEach { p ->
+                                val isStart = p == slot.startPeriod
+                                val isEnd = p == slot.endPeriod
+                                val isInRange = p in slot.startPeriod..slot.endPeriod
+                                
+                                val containerCol = when {
+                                    isStart || isEnd -> MaterialTheme.colorScheme.primary
+                                    isInRange -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                    else -> MaterialTheme.colorScheme.surface
                                 }
-                            }
-
-                            // End Period
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("结束节次", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                var expanded by remember { mutableStateOf(false) }
-                                Box(modifier = Modifier.fillMaxWidth()) {
-                                    OutlinedButton(
-                                        onClick = { expanded = true },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text("第 ${slot.endPeriod} 节")
-                                    }
-                                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                        (slot.startPeriod..12).forEach { p ->
-                                            DropdownMenuItem(
-                                                text = { Text("第 $p 节") },
-                                                onClick = {
-                                                    slots = slots.mapIndexed { i, s ->
-                                                        if (i == index) s.copy(endPeriod = p) else s
-                                                    }
-                                                    expanded = false
-                                                }
-                                            )
-                                        }
+                                val contentCol = when {
+                                    isStart || isEnd -> MaterialTheme.colorScheme.onPrimary
+                                    isInRange -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .size(height = 54.dp, width = 50.dp)
+                                        .clip(MaterialTheme.shapes.medium)
+                                        .background(containerCol)
+                                        .border(
+                                            BorderStroke(
+                                                width = if (isStart || isEnd) 2.dp else 1.dp,
+                                                color = if (isInRange) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                            ),
+                                            MaterialTheme.shapes.medium
+                                        )
+                                        .clickable {
+                                            val currentStart = slot.startPeriod
+                                            val currentEnd = slot.endPeriod
+                                            val (ns, ne) = when {
+                                                p < currentStart -> p to currentEnd
+                                                p > currentEnd -> currentStart to p
+                                                p == currentStart && p == currentEnd -> p to p
+                                                else -> p to p
+                                            }
+                                            slots = slots.mapIndexed { i, s ->
+                                                if (i == index) s.copy(startPeriod = ns, endPeriod = ne) else s
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(text = "$p", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = contentCol)
+                                        Text(text = "节", fontSize = 9.sp, color = contentCol.copy(alpha = 0.7f))
                                     }
                                 }
                             }
@@ -355,14 +376,14 @@ fun AddEditCourseScreen(
                             },
                             label = { Text("上课教室") },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium
                         )
 
                         // Active Weeks trigger
                         OutlinedButton(
                             onClick = { editingSlotIndex = index },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             val activeWeeksCount = slot.activeWeeks.size
                             Text(
@@ -379,7 +400,7 @@ fun AddEditCourseScreen(
                 onClick = { slots = slots + SlotInput() },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text("增加上课时间段", fontWeight = FontWeight.Bold)
             }
@@ -397,7 +418,7 @@ fun AddEditCourseScreen(
                         .fillMaxWidth()
                         .padding(bottom = 40.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text("删除这门课程", fontWeight = FontWeight.Bold)
                 }
@@ -407,7 +428,7 @@ fun AddEditCourseScreen(
         }
     }
 
-    // Week selector Dialog
+    // Week selector Dialog with 3D flip card selection animation
     if (editingSlotIndex != null) {
         val index = editingSlotIndex!!
         val slot = slots[index]
@@ -427,7 +448,7 @@ fun AddEditCourseScreen(
                             onClick = { tempWeeks = (1..20).toSet() },
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(horizontal = 4.dp),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = MaterialTheme.shapes.small
                         ) {
                             Text("全选", fontSize = 11.sp)
                         }
@@ -435,7 +456,7 @@ fun AddEditCourseScreen(
                             onClick = { tempWeeks = (1..20).filter { it % 2 != 0 }.toSet() },
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(horizontal = 4.dp),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = MaterialTheme.shapes.small
                         ) {
                             Text("单周", fontSize = 11.sp)
                         }
@@ -443,7 +464,7 @@ fun AddEditCourseScreen(
                             onClick = { tempWeeks = (1..20).filter { it % 2 == 0 }.toSet() },
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(horizontal = 4.dp),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = MaterialTheme.shapes.small
                         ) {
                             Text("双周", fontSize = 11.sp)
                         }
@@ -451,49 +472,79 @@ fun AddEditCourseScreen(
                             onClick = { tempWeeks = emptySet() },
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(horizontal = 4.dp),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = MaterialTheme.shapes.small
                         ) {
                             Text("清空", fontSize = 11.sp)
                         }
                     }
 
-                    // 4x5 Checkbox grid for weeks 1..20
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // 4x5 3D flip card grid for weeks 1..20
+                    val density = LocalDensity.current.density
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         for (row in 0 until 5) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                for (col in 1..4) {
-                                    val week = row * 4 + col
-                                    val isChecked = tempWeeks.contains(week)
-                                    Card(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clickable {
-                                                tempWeeks = if (isChecked) tempWeeks - week else tempWeeks + week
-                                            },
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = if (isChecked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                                    ) {
-                                        Text(
-                                            text = "$week 周",
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 8.dp),
-                                            textAlign = TextAlign.Center,
-                                            fontSize = 11.sp,
-                                            fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isChecked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                              ) {
+                                  for (col in 1..4) {
+                                      val week = row * 4 + col
+                                      val isChecked = tempWeeks.contains(week)
+                                      
+                                      // 3D rotation and scale animations
+                                      val rotationY by animateFloatAsState(
+                                          targetValue = if (isChecked) 180f else 0f,
+                                          animationSpec = tween(durationMillis = 400)
+                                      )
+                                      val scale by animateFloatAsState(
+                                          targetValue = if (isChecked) 1.06f else 0.94f,
+                                          animationSpec = tween(durationMillis = 200)
+                                      )
+                                      
+                                      Card(
+                                          modifier = Modifier
+                                              .weight(1f)
+                                              .graphicsLayer {
+                                                  this.rotationY = rotationY
+                                                  this.scaleX = scale
+                                                  this.scaleY = scale
+                                                  this.cameraDistance = 12f * density
+                                              }
+                                              .clickable {
+                                                  tempWeeks = if (isChecked) tempWeeks - week else tempWeeks + week
+                                              },
+                                          colors = CardDefaults.cardColors(
+                                              containerColor = if (rotationY > 90f) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                                          ),
+                                          shape = MaterialTheme.shapes.small,
+                                          border = BorderStroke(
+                                              width = 1.dp,
+                                              color = if (rotationY > 90f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                          )
+                                      ) {
+                                          Box(
+                                              modifier = Modifier
+                                                  .fillMaxWidth()
+                                                  .padding(vertical = 12.dp)
+                                                  .graphicsLayer {
+                                                      if (rotationY > 90f) {
+                                                          this.rotationY = 180f
+                                                      }
+                                                  },
+                                              contentAlignment = Alignment.Center
+                                          ) {
+                                              Text(
+                                                  text = "$week 周",
+                                                  textAlign = TextAlign.Center,
+                                                  fontSize = 11.sp,
+                                                  fontWeight = if (isChecked) FontWeight.Black else FontWeight.Normal,
+                                                  color = if (isChecked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                              )
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
                 }
             },
             confirmButton = {

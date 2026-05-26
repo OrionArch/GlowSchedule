@@ -24,13 +24,16 @@ import com.example.schday.data.DataRepository
 import com.example.schday.data.entity.Course
 import com.example.schday.data.entity.ScheduleSlot
 import com.example.schday.parser.ExcelParser
+import com.example.schday.theme.GlowTheme
 import com.example.schday.theme.MorandiColors
+import com.example.schday.theme.paperTexture
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportCoursesScreen(
     repository: DataRepository,
+    appTheme: GlowTheme,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -100,6 +103,7 @@ fun ImportCoursesScreen(
                         hasSemester = currentSemester != null,
                         jsonText = jsonText,
                         onJsonChange = { jsonText = it },
+                        appTheme = appTheme,
                         onImport = {
                             if (currentSemester == null) return@AiScreenshotImportPanel
                             coroutineScope.launch {
@@ -142,6 +146,7 @@ fun ImportCoursesScreen(
                 1 -> {
                     CsvImportPanel(
                         hasSemester = currentSemester != null,
+                        appTheme = appTheme,
                         onPickFile = { filePickerLauncher.launch("text/comma-separated-values") }
                     )
                 }
@@ -151,7 +156,7 @@ fun ImportCoursesScreen(
 }
 
 @Composable
-fun CsvImportPanel(hasSemester: Boolean, onPickFile: () -> Unit) {
+fun CsvImportPanel(hasSemester: Boolean, appTheme: GlowTheme, onPickFile: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -173,7 +178,7 @@ fun CsvImportPanel(hasSemester: Boolean, onPickFile: () -> Unit) {
         Button(
             onClick = onPickFile,
             enabled = hasSemester,
-            shape = RoundedCornerShape(12.dp),
+            shape = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth().height(48.dp)
         ) {
             Text("选择 CSV 文件导入")
@@ -190,6 +195,7 @@ fun AiScreenshotImportPanel(
     hasSemester: Boolean,
     jsonText: String,
     onJsonChange: (String) -> Unit,
+    appTheme: GlowTheme,
     onImport: () -> Unit
 ) {
     val context = LocalContext.current
@@ -207,6 +213,13 @@ fun AiScreenshotImportPanel(
           }
         ]
     """.trimIndent()
+
+    val borderStroke = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -227,10 +240,12 @@ fun AiScreenshotImportPanel(
         }
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .paperTexture(appTheme),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                shape = MaterialTheme.shapes.medium,
+                border = borderStroke
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
@@ -251,7 +266,7 @@ fun AiScreenshotImportPanel(
                             clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, "提示词已复制到剪贴板，请去发送给多模态 AI 吧！", Toast.LENGTH_SHORT).show()
                         },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("复制 AI 提示词", fontWeight = FontWeight.Bold)
@@ -266,7 +281,7 @@ fun AiScreenshotImportPanel(
                 modifier = Modifier.fillMaxWidth().height(180.dp),
                 label = { Text("粘贴 AI 输出的 JSON 代码块") },
                 placeholder = { Text("[\n  {\n    \"name\": \"高等数学\",\n    ...\n  }\n]") },
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
         }
         item {

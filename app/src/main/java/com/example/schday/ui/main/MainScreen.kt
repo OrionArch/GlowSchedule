@@ -30,6 +30,7 @@ import com.example.schday.ImportCourses
 import com.example.schday.data.DataRepository
 import com.example.schday.parser.BackupRestore
 import com.example.schday.parser.GlowCodeManager
+import com.example.schday.theme.hudBackground
 import com.example.schday.ui.screens.home.HomeTab
 import com.example.schday.ui.screens.settings.SettingsTab
 import com.example.schday.ui.screens.timetable.TimetableTab
@@ -40,6 +41,8 @@ import kotlinx.coroutines.launch
 fun MainScreen(
     repository: DataRepository,
     onItemClick: (NavKey) -> Unit,
+    appTheme: com.example.schday.theme.GlowTheme,
+    onThemeChange: (com.example.schday.theme.GlowTheme) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MainScreenViewModel = viewModel { MainScreenViewModel(repository) }
 ) {
@@ -96,6 +99,7 @@ fun MainScreen(
     }
 
     Scaffold(
+        modifier = Modifier.fillMaxSize().hudBackground(appTheme),
         bottomBar = {
             Surface(
                 modifier = Modifier
@@ -185,6 +189,7 @@ fun MainScreen(
                         semester = currentSemester,
                         courses = courses,
                         periods = periods,
+                        appTheme = appTheme,
                         onAddCourseClick = { onItemClick(AddEditCourse(null)) }
                     )
                 }
@@ -193,6 +198,7 @@ fun MainScreen(
                         semester = currentSemester,
                         courses = courses,
                         periods = periods,
+                        appTheme = appTheme,
                         selectedWeek = selectedWeek,
                         onWeekSelected = { viewModel.selectWeek(it) },
                         onCourseClick = { courseId -> onItemClick(AddEditCourse(courseId)) }
@@ -202,6 +208,7 @@ fun MainScreen(
                     TodoTab(
                         courses = courses,
                         homeworkList = homeworkList,
+                        appTheme = appTheme,
                         onAddHomework = { viewModel.insertHomework(it) },
                         onUpdateHomework = { viewModel.updateHomework(it) },
                         onDeleteHomework = { viewModel.deleteHomework(it) }
@@ -212,6 +219,8 @@ fun MainScreen(
                         semesters = semesters,
                         currentSemester = currentSemester,
                         periods = periods,
+                        appTheme = appTheme,
+                        onThemeChange = onThemeChange,
                         onSelectSemester = { viewModel.selectSemester(it) },
                         onAddSemester = { viewModel.insertSemester(it) },
                         onUpdatePeriods = { list ->

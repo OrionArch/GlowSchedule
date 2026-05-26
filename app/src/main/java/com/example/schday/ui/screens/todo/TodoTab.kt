@@ -31,7 +31,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.schday.data.entity.CourseWithSchedules
 import com.example.schday.data.entity.Homework
+import com.example.schday.theme.GlowTheme
 import com.example.schday.theme.getContrastingTextColor
+import com.example.schday.theme.glowOrShadow
+import com.example.schday.theme.paperTexture
+import com.example.schday.ui.components.GlowDatePickerDialog
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,6 +46,7 @@ import java.util.*
 fun TodoTab(
     courses: List<CourseWithSchedules>,
     homeworkList: List<Homework>,
+    appTheme: GlowTheme,
     onAddHomework: (Homework) -> Unit,
     onUpdateHomework: (Homework) -> Unit,
     onDeleteHomework: (Homework) -> Unit
@@ -55,6 +62,13 @@ fun TodoTab(
 
     val uncompletedTasks = remember(homeworkList) { homeworkList.filter { !it.isCompleted } }
     val completedTasks = remember(homeworkList) { homeworkList.filter { it.isCompleted } }
+
+    val borderStroke = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    }
 
     Column(
         modifier = Modifier
@@ -72,7 +86,12 @@ fun TodoTab(
 
         // Quick Add Task Form
         Card(
-            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .paperTexture(appTheme)
+                .glowOrShadow(appTheme, isFeatured = false),
+            shape = MaterialTheme.shapes.large,
+            border = borderStroke,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
         ) {
             Column(
@@ -92,7 +111,7 @@ fun TodoTab(
                             onClick = { courseDropdownExpanded = true },
                             modifier = Modifier.fillMaxWidth(),
                             contentPadding = PaddingValues(horizontal = 8.dp),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = MaterialTheme.shapes.small
                         ) {
                             val cName = selectedCourseIndex?.let { courses.getOrNull(it)?.course?.name } ?: "关联课程"
                             Text(cName, fontSize = 12.sp, maxLines = 1)
@@ -118,7 +137,7 @@ fun TodoTab(
                         onClick = { showDatePicker = true },
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 8.dp),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = MaterialTheme.shapes.small
                     ) {
                         Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -138,7 +157,7 @@ fun TodoTab(
                         placeholder = { Text("输入任务内容...") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     )
 
                     Button(
@@ -156,7 +175,7 @@ fun TodoTab(
                             title = "" // Clear input
                         },
                         enabled = title.isNotBlank() && selectedCourseIndex != null,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "添加")
                     }
@@ -183,6 +202,7 @@ fun TodoTab(
                         task = task,
                         courseName = associatedCourse?.name ?: "未知课程",
                         courseColorHex = associatedCourse?.colorHex ?: "#CCCCCC",
+                        appTheme = appTheme,
                         onCheckedChange = { isChecked ->
                             onUpdateHomework(task.copy(isCompleted = isChecked))
                         },
@@ -202,6 +222,7 @@ fun TodoTab(
                         task = task,
                         courseName = associatedCourse?.name ?: "未知课程",
                         courseColorHex = associatedCourse?.colorHex ?: "#CCCCCC",
+                        appTheme = appTheme,
                         onCheckedChange = { isChecked ->
                             onUpdateHomework(task.copy(isCompleted = isChecked))
                         },
@@ -220,29 +241,17 @@ fun TodoTab(
         }
     }
 
-    // Material 3 Date Picker Dialog
+    // Theme-Aware Glow Date Picker Dialog
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDeadlineMillis)
-        DatePickerDialog(
+        GlowDatePickerDialog(
+            initialDateMillis = selectedDeadlineMillis,
             onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { selectedDeadlineMillis = it }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text("确定", fontWeight = FontWeight.Bold)
-                }
+            onDateSelected = { selectedTime ->
+                selectedDeadlineMillis = selectedTime
+                showDatePicker = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("取消")
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+            appTheme = appTheme
+        )
     }
 }
 
@@ -251,6 +260,7 @@ fun TodoItemRow(
     task: Homework,
     courseName: String,
     courseColorHex: String,
+    appTheme: GlowTheme,
     onCheckedChange: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -289,6 +299,13 @@ fun TodoItemRow(
         else -> MaterialTheme.colorScheme.primary
     }
 
+    val borderStroke = when (appTheme) {
+        GlowTheme.AMOLED_POP -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.DEEP_CHARCOAL -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.VINTAGE_LIBRARY -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+        GlowTheme.ACADEMIC_SERENITY -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+    }
+
     // Particle system states
     var isExploding by remember { mutableStateOf(false) }
     var particleTime by remember { mutableStateOf(0f) }
@@ -322,8 +339,12 @@ fun TodoItemRow(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .paperTexture(appTheme)
+            .glowOrShadow(appTheme, isFeatured = !task.isCompleted),
+        shape = MaterialTheme.shapes.medium,
+        border = borderStroke,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -358,6 +379,7 @@ fun TodoItemRow(
             ) {
                 BouncyCheckbox(
                     checked = task.isCompleted,
+                    appTheme = appTheme,
                     onCheckedChange = { isChecked ->
                         onCheckedChange(isChecked)
                         // Trigger explosion if checking to completed
@@ -434,6 +456,7 @@ fun TodoItemRow(
 @Composable
 fun BouncyCheckbox(
     checked: Boolean,
+    appTheme: GlowTheme,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -446,20 +469,31 @@ fun BouncyCheckbox(
         label = "checkboxScale"
     )
 
+    val checkboxShape = when (appTheme) {
+        GlowTheme.ACADEMIC_SERENITY -> RoundedCornerShape(6.dp)
+        GlowTheme.DEEP_CHARCOAL -> RoundedCornerShape(4.dp)
+        GlowTheme.AMOLED_POP -> RoundedCornerShape(2.dp)
+        GlowTheme.VINTAGE_LIBRARY -> CircleShape
+    }
+
     Box(
         modifier = modifier
             .graphicsLayer(scaleX = scale, scaleY = scale)
             .size(24.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(checkboxShape)
             .background(
-                if (checked) MaterialTheme.colorScheme.primary 
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                if (checked) {
+                    if (appTheme == GlowTheme.VINTAGE_LIBRARY) MaterialTheme.colorScheme.secondary
+                    else MaterialTheme.colorScheme.primary
+                } else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
             .border(
-                width = 2.dp,
-                color = if (checked) MaterialTheme.colorScheme.primary 
-                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(6.dp)
+                width = if (appTheme == GlowTheme.AMOLED_POP) 1.5.dp else 2.dp,
+                color = if (checked) {
+                    if (appTheme == GlowTheme.VINTAGE_LIBRARY) MaterialTheme.colorScheme.outline
+                    else MaterialTheme.colorScheme.primary
+                } else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                shape = checkboxShape
             )
             .clickable { onCheckedChange(!checked) },
         contentAlignment = Alignment.Center
@@ -468,7 +502,7 @@ fun BouncyCheckbox(
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimary,
+                tint = if (appTheme == GlowTheme.VINTAGE_LIBRARY) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(16.dp)
             )
         }
