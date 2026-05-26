@@ -43,4 +43,141 @@ class DateUtilsTest {
         assertFalse(DateUtils.isWeekActive(input, 9))
         assertFalse(DateUtils.isWeekActive(input, 11))
     }
+
+    // --- parseActiveWeeks boundary cases ---
+
+    @Test
+    fun parseActiveWeeks_singleValue() {
+        val result = DateUtils.parseActiveWeeks("5")
+        assertEquals(listOf(5), result)
+    }
+
+    @Test
+    fun parseActiveWeeks_emptyString_returnsEmptyList() {
+        val result = DateUtils.parseActiveWeeks("")
+        assertEquals(emptyList<Int>(), result)
+    }
+
+    @Test
+    fun parseActiveWeeks_reversedRange_stillProducesAscendingList() {
+        // Range "8-3" should produce [3,4,5,6,7,8] (the code handles start > end)
+        val result = DateUtils.parseActiveWeeks("8-3")
+        assertEquals(listOf(3, 4, 5, 6, 7, 8), result)
+    }
+
+    @Test
+    fun parseActiveWeeks_reversedTildeRange_stillProducesAscendingList() {
+        val result = DateUtils.parseActiveWeeks("10~5")
+        assertEquals(listOf(5, 6, 7, 8, 9, 10), result)
+    }
+
+    @Test
+    fun parseActiveWeeks_allInvalid_returnsEmptyList() {
+        val result = DateUtils.parseActiveWeeks("abc, def, xyz")
+        assertEquals(emptyList<Int>(), result)
+    }
+
+    @Test
+    fun parseActiveWeeks_mixedListAndRanges() {
+        val result = DateUtils.parseActiveWeeks("1, 3-5, 8, 10-12")
+        assertEquals(listOf(1, 3, 4, 5, 8, 10, 11, 12), result)
+    }
+
+    @Test
+    fun parseActiveWeeks_duplicateValues_allowed() {
+        val result = DateUtils.parseActiveWeeks("1, 1, 2-3, 3")
+        assertEquals(listOf(1, 1, 2, 3, 3), result)
+    }
+
+    @Test
+    fun parseActiveWeeks_singleValueRange() {
+        val result = DateUtils.parseActiveWeeks("5-5")
+        assertEquals(listOf(5), result)
+    }
+
+    // --- isWeekActive boundary cases ---
+
+    @Test
+    fun isWeekActive_emptyString_returnsFalse() {
+        assertFalse(DateUtils.isWeekActive("", 1))
+    }
+
+    @Test
+    fun isWeekActive_weekZero_returnsFalse() {
+        assertFalse(DateUtils.isWeekActive("1-16", 0))
+    }
+
+    // --- formatPeriodTime ---
+
+    @Test
+    fun formatPeriodTime_combinesStartAndEnd() {
+        assertEquals("08:00-08:45", DateUtils.formatPeriodTime("08:00", "08:45"))
+    }
+
+    @Test
+    fun formatPeriodTime_emptyStrings() {
+        assertEquals("-", DateUtils.formatPeriodTime("", ""))
+    }
+
+    // --- getDayName ---
+
+    @Test
+    fun getDayName_allDays() {
+        assertEquals("周一", DateUtils.getDayName(1))
+        assertEquals("周二", DateUtils.getDayName(2))
+        assertEquals("周三", DateUtils.getDayName(3))
+        assertEquals("周四", DateUtils.getDayName(4))
+        assertEquals("周五", DateUtils.getDayName(5))
+        assertEquals("周六", DateUtils.getDayName(6))
+        assertEquals("周日", DateUtils.getDayName(7))
+    }
+
+    @Test
+    fun getDayName_invalidDay_returnsEmptyString() {
+        assertEquals("", DateUtils.getDayName(0))
+        assertEquals("", DateUtils.getDayName(8))
+        assertEquals("", DateUtils.getDayName(-1))
+    }
+
+    // --- getCurrentWeek boundary cases ---
+
+    @Test
+    fun getCurrentWeek_startDateInFuture_returns1() {
+        // Use a date far in the future
+        val futureStart = System.currentTimeMillis() + 365L * 24 * 60 * 60 * 1000 // 1 year from now
+        val result = DateUtils.getCurrentWeek(futureStart, 20)
+        assertEquals(1, result)
+    }
+
+    @Test
+    fun getCurrentWeek_withinFirstWeek_returns1() {
+        // Start date is 3 days ago (less than 1 full week)
+        val startDate = System.currentTimeMillis() - 3L * 24 * 60 * 60 * 1000
+        val result = DateUtils.getCurrentWeek(startDate, 20)
+        assertEquals(1, result)
+    }
+
+    @Test
+    fun getCurrentWeek_inSecondWeek_returns2() {
+        // Start date is 8 days ago (> 1 week, < 2 weeks)
+        val startDate = System.currentTimeMillis() - 8L * 24 * 60 * 60 * 1000
+        val result = DateUtils.getCurrentWeek(startDate, 20)
+        assertEquals(2, result)
+    }
+
+    @Test
+    fun getCurrentWeek_exceedsTotalWeeks_clampedToTotal() {
+        // Start date is 200 days ago, with only 16 weeks total
+        val startDate = System.currentTimeMillis() - 200L * 24 * 60 * 60 * 1000
+        val result = DateUtils.getCurrentWeek(startDate, 16)
+        assertEquals(16, result)
+    }
+
+    @Test
+    fun getCurrentWeek_exactlyAtTotalWeeksBoundary() {
+        // Start date is exactly 19 weeks ago (week 20)
+        val startDate = System.currentTimeMillis() - 19L * 7 * 24 * 60 * 60 * 1000
+        val result = DateUtils.getCurrentWeek(startDate, 20)
+        assertEquals(20, result)
+    }
 }
